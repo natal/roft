@@ -1,0 +1,16 @@
+#[link(name     = "roft"
+       , vers   = "0.0"
+       , author = "Benjamin Roux, Sébastien Crozet"
+       , uuid   = "56dd47f1-69af-47f5-a5ec-585fbda70f58")];
+#[crate_type = "bin"];
+#[warn(non_camel_case_types)]
+
+extern mod std;
+extern mod extra;
+extern mod nphysics;
+extern mod nalgebra;
+extern mod kiss3d;
+
+pub mod roft;
+pub mod soft_body;
+pub mod graph;
