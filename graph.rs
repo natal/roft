@@ -4,6 +4,7 @@ use std::iterator::Counter;
 use std::io;
 use std::uint;
 use nalgebra::vec::Vec3;
+use nalgebra::traits::scalar_op::ScalarMul;
 
 type Vec3f = Vec3<f64>;
 
@@ -15,6 +16,7 @@ pub struct Edge
   adj_edges:    ~[@mut Edge],
   node_1:       @mut Node,
   node_2:       @mut Node,
+  pos:          Vec3f
 }
 
 impl Edge
@@ -27,8 +29,13 @@ impl Edge
       adj_edges:   ~[],
       node_1: n1,
       node_2: n2,
-      color: col
+      color: col,
+      pos: (n1.pos + n2.pos).scalar_mul(&0.5)
     }
+  }
+  pub fn to_str(&self) -> ~str
+  {
+    "e" + self.id.to_str()
   }
 
   pub fn equals(&self, e: &Edge) -> bool
@@ -63,7 +70,8 @@ pub struct Node
   priv id:      uint,
   pos:          Vec3f,
   adj_edges:    ~[@mut Edge],
-  adj_nodes:    ~[@mut Node]
+  adj_nodes:    ~[@mut Node],
+  priv marked: bool
 }
 
 impl Node
@@ -75,8 +83,24 @@ impl Node
       id:    identifier,
       adj_edges:   ~[],
       adj_nodes:   ~[],
-      pos: pos
+      pos: pos,
+      marked: false
     }
+  }
+
+  pub fn unmark(&mut self)
+  {
+    self.marked = false
+  }
+
+  pub fn mark(&mut self)
+  {
+    self.marked = true
+  }
+
+  pub fn is_marked(&self) -> bool
+  {
+    self.marked
   }
 
   pub fn to_str(&self) -> ~str
@@ -96,12 +120,7 @@ impl Node
 
   pub fn is_adj_to(&self, node: &Node) -> bool
   {
-    for self.adj_nodes.iter().advance |n1|
-    {
-      if n1.equals(node)
-      { return true }
-    }
-    return false;
+    self.adj_nodes.iter().any_(|n1| n1.equals(node))
   }
 
   pub fn nb_common_adj(&self, node: &Node) -> uint
@@ -118,6 +137,22 @@ impl Node
     nb_common
   }
 
+  priv fn share_2_adjs(&self, node: &Node) -> bool
+  {
+    let mut count = 0;
+    for self.adj_nodes.iter().advance |n1|
+    {
+      for node.adj_nodes.iter().advance |n2|
+      {
+        if n1.equals(*n2)
+        { count = count + 1 }
+        if count >= 2
+        { return true }
+      }
+    }
+    return false
+  }
+
   pub fn get_2_distant_adjs(&self) -> ~[@mut Node]
   {
     let mut dist_nodes : ~[@mut Node] = ~[];
@@ -125,7 +160,7 @@ impl Node
     {
       for n1.adj_nodes.iter().advance |n2|
       {
-        if !self.is_adj_to(*n2)
+        if (!self.is_adj_to(*n2)) && (self.share_2_adjs(*n2)) && (!self.equals(*n2))
         { dist_nodes.push(*n2) }
       }
     }
@@ -162,13 +197,17 @@ impl Node
     for uint::iterate(0u, node.adj_nodes.len()) |i|
     {
       let a = node.adj_nodes[i];
-      let edge = @mut Edge::new(all_edges.len() + 1, -1, a, node);
+      if !a.marked
+      {
+        let edge = @mut Edge::new(all_edges.len() + 1, -1, a, node);
 
-      node.adj_edges.push(edge);
-      a.adj_edges.push(edge);
+        node.adj_edges.push(edge);
+        a.adj_edges.push(edge);
 
-      all_edges.push(edge);
+        all_edges.push(edge);
+      }
     }
+    node.marked = true;
   }
 }
 
@@ -238,26 +277,65 @@ impl Graph
 
   pub fn augment(&mut self)
   {
+    let mut to_connect : ~[~[@mut Node]] = ~[];
     for self.nodes.iter().advance |n|
     {
-      let n_dist_2 = n.get_2_distant_adjs();
-      for n_dist_2.iter().advance |n2|
+      to_connect.push(n.get_2_distant_adjs());
+    }
+    for self.nodes.iter().enumerate().advance |(i, n)|
+    {
+      for to_connect[i].iter().advance |n2|
       { Node::connect_nodes(*n, *n2) }
     }
   }
 
-  pub fn write_to_file(&self)
+  pub fn unmark(&mut self)
+  {
+     for self.nodes.iter().advance |n1|
+     {
+       n1.unmark();
+     }
+  }
+
+  pub fn write_to_file(&mut self)
   {
      let path = Path("./out.dot");
      let file = io::file_writer(&path, [io::Create]).get();
      file.write_str("graph graphname {\n");
 
+     self.unmark();
+     for self.nodes.iter().advance |n1|
+     {
+       file.write_str(n1.to_str() + " [pos=\"" + n1.pos.at[0].to_str() + "," +
+                      n1.pos.at[1].to_str() + "!\"]\n");
+     }
+
+     for self.edges.iter().advance |e|
+     {
+       file.write_str(e.to_str() + " [pos=\"" + e.pos.at[0].to_str() + "," +
+                      e.pos.at[1].to_str() + "!\"]\n");
+     }
+
+     for self.nodes.iter().advance |n1|
+     {
+       for n1.adj_edges.iter().advance |e|
+       {
+         file.write_str(n1.to_str() + " -- " +
+                        e.to_str() + "\n");
+       }
+     }
+
      for self.nodes.iter().advance |n1|
      {
        for n1.adj_nodes.iter().advance |n2|
        {
-         file.write_str(n1.to_str() + " -- " + n2.to_str() + "\n");
+         if (!n2.is_marked())
+         {
+           file.write_str(n1.to_str() + " -- " +
+                          n2.to_str() + "\n");
+         }
        }
+       n1.mark();
      }
      file.write_str("}");
   }
@@ -265,6 +343,7 @@ impl Graph
   // Warning : erases color
   pub fn build_edge_graph(&mut self)
   {
+    self.unmark();
     for self.nodes.iter().advance |n|
     {
       Node::split(*n, &mut self.edges);
@@ -284,9 +363,9 @@ impl Graph
 
 fn main()
 {
-  let vb = ~[Vec3::new([0.0f64,0.0,0.0]), Vec3::new([0.0f64,1.0,0.0]), Vec3::new([0.0f64,2.0,0.0]),Vec3::new([0.0f64,3.0,0.0]),
-            Vec3::new([1.0f64,0.0,0.0]), Vec3::new([1.0f64,1.0,0.0]), Vec3::new([1.0f64,2.0,0.0]), Vec3::new([1.0f64,3.0,0.0]),
-            Vec3::new([2.0f64,0.0,0.0]), Vec3::new([2.0f64,1.0,0.0]), Vec3::new([2.0f64,2.0,0.0]), Vec3::new([2.0f64,3.0,0.0])];
+  let vb = ~[Vec3::new([0.0f64,0.0,0.0]), Vec3::new([0.0f64,2.0,0.0]), Vec3::new([0.0f64,4.0,0.0]),Vec3::new([0.0f64,6.0,0.0]),
+            Vec3::new([2.0f64,0.0,0.0]), Vec3::new([2.0f64,2.0,0.0]), Vec3::new([2.0f64,4.0,0.0]), Vec3::new([2.0f64,6.0,0.0]),
+            Vec3::new([4.0f64,0.0,0.0]), Vec3::new([4.0f64,2.0,0.0]), Vec3::new([4.0f64,4.0,0.0]), Vec3::new([4.0f64,6.0,0.0])];
 
   let ib = ~[0u, 1, 5,
              1, 2, 5,
@@ -303,7 +382,7 @@ fn main()
 
   let mesh = Mesh::new(vb, ib);
   let mut graph = Graph::new(mesh);
-//  graph.build_edge_graph();
-
+  graph.augment();
+  graph.build_edge_graph();
   graph.write_to_file();
 }
