@@ -4,3 +4,6 @@
 [submodule "kiss3d"]
 	path = kiss3d
 	url = git://github.com/sebcrozet/kiss3d.git
+[submodule "nphysics"]
+	path = nphysics
+	url = git://github.com/sebcrozet/nphysics.git

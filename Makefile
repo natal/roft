@@ -4,6 +4,13 @@ all:
 	rm -rf line.dot
 	./graph
 
+deps:
+	make -C nalgebra
+	make deps -C nphysics
+	make deps -C kiss3d
+	make -C nphysics
+	make -C kiss3d
+
 simple:
 	dot -Kfdp -n -Tpdf simple.dot -o simple.pdf
 	open simple.pdf
