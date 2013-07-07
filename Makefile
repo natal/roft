@@ -1,6 +1,13 @@
 all:
-	rustc -L./nalgebra/lib graph.rs --opt-level=3
-	rm -rf out.dot
+	rustc -L./kiss3d/glcore-rs/lib/ -L./kiss3d/glfw-rs/lib/ -L./kiss3d/lib -L./nalgebra/lib graph.rs --opt-level=3
+	rm -rf simple.dot
+	rm -rf line.dot
 	./graph
-	dot -Kfdp -n -Tpdf out.dot -o outfile.pdf
-	open outfile.pdf
+
+simple:
+	dot -Kfdp -n -Tpdf simple.dot -o simple.pdf
+	open simple.pdf
+
+line:
+	dot -Kfdp -n -Tpdf line.dot -o line.pdf
+	open line.pdf

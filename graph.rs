@@ -1,14 +1,18 @@
 extern mod extra;
 extern mod nalgebra;
+extern mod kiss3d;
 
 use std::iterator::Counter;
 use std::io;
 use std::uint;
+use std::vec;
 use extra::sort::Sort;
 use nalgebra::vec::Vec3;
 use nalgebra::traits::scalar_op::ScalarMul;
+use kiss3d::window;
+use kiss3d::object::VerticesTriangles;
 
-type Vec3f = Vec3<f64>;
+type Vec3f = Vec3<f32>;
 
 
 pub struct Edge
@@ -76,9 +80,7 @@ impl Edge
 
   pub fn dsat(&self, nb_colors: uint) -> uint
   {
-    let mut buckets : ~[bool] = ~[];
-    for uint::iterate(0u, nb_colors + 1) |i|
-    { buckets.push(false) }
+    let mut buckets = vec::from_elem(nb_colors + 1, false);
 
     for self.adj_edges.iter().advance |e|
     {
@@ -309,14 +311,13 @@ impl Node
 pub struct Mesh
 {
   vbuff: ~[Vec3f],
-  ibuff: ~[uint]
+  ibuff: ~[(u32, u32, u32)]
 }
 
 impl Mesh
 {
-  pub fn new(vb: ~[Vec3f], ib: ~[uint]) -> Mesh
+  pub fn new(vb: ~[Vec3f], ib: ~[(u32, u32, u32)]) -> Mesh
   {
-    assert!(ib.len() % 3 == 0);
     Mesh
     {
       vbuff: vb,
@@ -341,26 +342,14 @@ impl Graph
       nodes.push(@mut Node::new (vid, *v));
     }
 
-    for Counter::new(0u, 3).advance |i|
+    for mesh.ibuff.iter().advance |&(id1, id2, id3)|
     {
-      if i >= mesh.ibuff.len()
-      { break }
-
-      let id1 = mesh.ibuff[i];
-      let id2 = mesh.ibuff[i + 1];
-      let id3 = mesh.ibuff[i + 2];
-
       Node::connect_nodes(nodes[id1], nodes[id2]);
       Node::connect_nodes(nodes[id1], nodes[id3]);
       Node::connect_nodes(nodes[id2], nodes[id1]);
       Node::connect_nodes(nodes[id2], nodes[id3]);
       Node::connect_nodes(nodes[id3], nodes[id2]);
       Node::connect_nodes(nodes[id3], nodes[id1]);
-    }
-
-    for nodes.iter().advance |n|
-    {
-      println(n.to_str() + " has " + n.adj_nodes.len().to_str() + " neighbors");
     }
 
     Graph
@@ -396,22 +385,36 @@ impl Graph
      }
   }
 
-  pub fn write_to_file(&mut self)
+  priv fn write_simple(&mut self)
   {
-     let path = Path("./out.dot");
+     let path = Path("./simple.dot");
+     let file = io::file_writer(&path, [io::Create]).get();
+     file.write_str("graph simple {\n");
+     self.unmark();
+     for self.nodes.iter().advance |n1|
+     {
+       file.write_str(n1.to_str() + " [pos=\"" + n1.pos.at[0].to_str() + "," +
+                      n1.pos.at[1].to_str() + "!\"]\n");
+     }
+     for self.edges.iter().advance |e|
+     {
+       file.write_str(e.node_1.to_str() + " -- " +
+                      e.node_2.to_str() + "\n");
+     }
+     file.write_str("}");
+  }
+
+  priv fn write_line(&mut self)
+  {
+     let path = Path("./line.dot");
      let file = io::file_writer(&path, [io::Create]).get();
      let colors = ~["azure", "skyblue", "pink", "crimson", "peru",
                     "orange", "gold", "lawngreen", "cyan", "blueviolet",
-                    "lavender", "mediumblue", "limegreen"];
-     file.write_str("graph graphname {\n");
-
+                    "lavender", "mediumblue", "limegreen", "chocolate", "plum",
+                    "yellowgreen", "royalblue", "hotpink", "darkslategray",
+                    "darkorange", "beige", "aliceblue", "tomato", "salmon"];
+     file.write_str("graph line {\n");
      self.unmark();
- //    for self.nodes.iter().advance |n1|
- //    {
- //      file.write_str(n1.to_str() + " [pos=\"" + n1.pos.at[0].to_str() + "," +
- //                     n1.pos.at[1].to_str() + "!\"]\n");
- //    }
-
      for self.edges.iter().advance |e|
      {
        file.write_str(e.to_str() + " [pos=\"" + e.pos.at[0].to_str() + "," +
@@ -419,15 +422,6 @@ impl Graph
                       colors[e.color() as uint] +
                       ", style=filled]\n");
      }
-
- //    for self.nodes.iter().advance |n1|
- //    {
- //      for n1.adj_edges.iter().advance |e|
- //      {
- //        file.write_str(n1.to_str() + " -- " +
- //                       e.to_str() + "\n");
- //      }
- //    }
 
      for self.edges.iter().advance |e1|
      {
@@ -441,20 +435,14 @@ impl Graph
        }
        e1.mark();
      }
-
- //    for self.nodes.iter().advance |n1|
- //    {
- //      for n1.adj_nodes.iter().advance |n2|
- //      {
- //        if (!n2.is_marked())
- //        {
- //          file.write_str(n1.to_str() + " -- " +
- //                         n2.to_str() + "\n");
- //        }
- //      }
- //      n1.mark();
- //    }
      file.write_str("}");
+  }
+
+
+  pub fn write_to_file(&mut self)
+  {
+    self.write_simple();
+   // self.write_line();
   }
 
   // Warning : erases color
@@ -492,7 +480,7 @@ impl Graph
 
       let mut max_node = self.edges.iter().find_(|n| n.color() < 0).unwrap();
       let mut max_dsat = max_node.dsat(nb_chrom as uint);
-      for self.edges.iter().enumerate().advance |(i, n)|
+      for self.edges.iter().advance |n|
       {
         if (n.color() < 0)
         {
@@ -508,6 +496,7 @@ impl Graph
       nb_chrom = max_node.min_color().max(&nb_chrom);
     }
     println("nb_chrom : " + nb_chrom.to_str());
+    println("mean : " + (self.edges.len() as float / (nb_chrom as float)).to_str());
   }
 }
 
@@ -515,40 +504,29 @@ impl Graph
 
 fn main()
 {
-  let vb = ~[Vec3::new([0.0f64,0.0,0.0]), Vec3::new([0.0f64,2.0,0.0]), Vec3::new([0.0f64,4.0,0.0]),Vec3::new([0.0f64,6.0,0.0]),
-            Vec3::new([2.0f64,0.0,0.0]), Vec3::new([2.0f64,2.0,0.0]), Vec3::new([2.0f64,4.0,0.0]), Vec3::new([2.0f64,6.0,0.0]),
-            Vec3::new([4.0f64,0.0,0.0]), Vec3::new([4.0f64,2.0,0.0]), Vec3::new([4.0f64,4.0,0.0]), Vec3::new([4.0f64,6.0,0.0])];
-
-  let ib = ~[0u, 1, 5,
-             1, 2, 5,
-             2, 3, 6,
-             0, 4, 5,
-             2, 5, 6,
-             3, 6, 7,
-             4, 5, 8,
-             8, 9, 5,
-             9, 5, 6,
-             9, 10, 6,
-             6, 10, 11,
-             6, 7, 11];
-
-//  let vb = ~[Vec3::new([0.0f64,0.0,0.0]), Vec3::new([0.0f64,2.0,0.0]), Vec3::new([0.0f64,4.0,0.0]),
-//            Vec3::new([2.0f64,0.0,0.0]), Vec3::new([2.0f64,2.0,0.0]), Vec3::new([2.0f64,4.0,0.0]) ,
-//            Vec3::new([4.0f64,0.0,0.0]), Vec3::new([4.0f64,2.0,0.0]), Vec3::new([4.0f64,4.0,0.0]) ];
-//
-//  let ib = ~[0u, 1, 4,
-//             1, 2, 4,
-//             4, 2, 5,
-//             0, 3, 4,
-//             3, 4, 6,
-//             6, 7, 4,
-//             4, 5, 7,
-//             7, 5, 8];
-
-  let mesh = Mesh::new(vb, ib);
-  let mut graph = Graph::new(mesh);
-  graph.augment();
-  graph.build_edge_graph();
-  graph.color_edge_graph();
-  graph.write_to_file();
+  do window::Window::spawn(~"Mesh") |w|
+  {
+    let q = w.add_quad(10.0, 10.0, 50, 50, true);
+    match *q.geometry()
+    {
+      Some(ref g) => match *g
+      {
+        VerticesTriangles(ref v, ref t) =>
+        {
+          let mesh = Mesh::new(v.clone(), t.clone());
+          let mut graph = Graph::new(mesh);
+          println("Augmenting graph...");
+          graph.augment();
+          println("Creating line graph...");
+          graph.build_edge_graph();
+          println("Coloring edge graph...");
+          graph.color_edge_graph();
+          println("Writting to file...");
+          graph.write_to_file();
+          println("Done");
+        }
+      },
+      _ => { }
+    }
+  }
 }

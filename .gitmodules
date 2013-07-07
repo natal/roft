@@ -1,3 +1,6 @@
 [submodule "nalgebra"]
 	path = nalgebra
 	url = git://github.com/sebcrozet/nalgebra.git
+[submodule "kiss3d"]
+	path = kiss3d
+	url = git://github.com/sebcrozet/kiss3d.git
