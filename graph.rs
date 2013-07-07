@@ -1,8 +1,10 @@
+extern mod extra;
 extern mod nalgebra;
 
 use std::iterator::Counter;
 use std::io;
 use std::uint;
+use extra::sort::Sort;
 use nalgebra::vec::Vec3;
 use nalgebra::traits::scalar_op::ScalarMul;
 
@@ -13,10 +15,47 @@ pub struct Edge
 {
   priv id:      uint,
   priv color:   int,
+  priv marked:  bool,
   adj_edges:    ~[@mut Edge],
   node_1:       @mut Node,
   node_2:       @mut Node,
   pos:          Vec3f
+}
+
+impl Ord for Edge
+{
+  fn lt(&self, other: &Edge) -> bool
+  {
+    self.adj_edges.len() > other.adj_edges.len()
+  }
+
+  fn le(&self, other: &Edge) -> bool
+  {
+    self.adj_edges.len() >= other.adj_edges.len()
+  }
+
+  fn ge(&self, other: &Edge) -> bool
+  {
+    self.adj_edges.len() <= other.adj_edges.len()
+  }
+
+  fn gt(&self, other: &Edge) -> bool
+  {
+    self.adj_edges.len() < other.adj_edges.len()
+  }
+}
+
+impl Eq for Edge
+{
+  fn eq(&self, other: &Edge) -> bool
+  {
+    self.adj_edges.len() == other.adj_edges.len()
+  }
+
+  fn ne(&self, other: &Edge) -> bool
+  {
+    self.adj_edges.len() != other.adj_edges.len()
+  }
 }
 
 impl Edge
@@ -30,8 +69,51 @@ impl Edge
       node_1: n1,
       node_2: n2,
       color: col,
+      marked: false,
       pos: (n1.pos + n2.pos).scalar_mul(&0.5)
     }
+  }
+
+  pub fn dsat(&self, nb_colors: uint) -> uint
+  {
+    let mut buckets : ~[bool] = ~[];
+    for uint::iterate(0u, nb_colors + 1) |i|
+    { buckets.push(false) }
+
+    for self.adj_edges.iter().advance |e|
+    {
+      if (e.color >= 0)
+      { buckets[e.color as uint] = true }
+    }
+
+    let mut count = 0u;
+
+    for buckets.iter().advance |u|
+    {
+      if (*u)
+      { count = count + 1 }
+    }
+    count
+  }
+
+  pub fn degree(&self) -> uint
+  {
+    self.adj_edges.len()
+  }
+
+  pub fn unmark(&mut self)
+  {
+    self.marked = false
+  }
+
+  pub fn mark(&mut self)
+  {
+    self.marked = true
+  }
+
+  pub fn is_marked(&self) -> bool
+  {
+    self.marked
   }
   pub fn to_str(&self) -> ~str
   {
@@ -51,6 +133,19 @@ impl Edge
   pub fn set_color(&mut self, col: int)
   {
     self.color = col;
+  }
+
+  pub fn min_color(&mut self) -> int
+  {
+    let mut max_col = self.adj_edges.head().color;
+    for self.adj_edges.iter().advance |e|
+    {
+      if (max_col < e.color)
+      { max_col = e.color }
+    }
+
+    self.color = max_col + 1;
+    self.color
   }
 
   pub fn is_adj_to(&self, edge: &Edge) -> bool
@@ -295,48 +390,70 @@ impl Graph
      {
        n1.unmark();
      }
+     for self.edges.iter().advance |e1|
+     {
+       e1.unmark();
+     }
   }
 
   pub fn write_to_file(&mut self)
   {
      let path = Path("./out.dot");
      let file = io::file_writer(&path, [io::Create]).get();
+     let colors = ~["azure", "skyblue", "pink", "crimson", "peru",
+                    "orange", "gold", "lawngreen", "cyan", "blueviolet",
+                    "lavender", "mediumblue", "limegreen"];
      file.write_str("graph graphname {\n");
 
      self.unmark();
-     for self.nodes.iter().advance |n1|
-     {
-       file.write_str(n1.to_str() + " [pos=\"" + n1.pos.at[0].to_str() + "," +
-                      n1.pos.at[1].to_str() + "!\"]\n");
-     }
+ //    for self.nodes.iter().advance |n1|
+ //    {
+ //      file.write_str(n1.to_str() + " [pos=\"" + n1.pos.at[0].to_str() + "," +
+ //                     n1.pos.at[1].to_str() + "!\"]\n");
+ //    }
 
      for self.edges.iter().advance |e|
      {
        file.write_str(e.to_str() + " [pos=\"" + e.pos.at[0].to_str() + "," +
-                      e.pos.at[1].to_str() + "!\"]\n");
+                      e.pos.at[1].to_str() + "!\", color="+
+                      colors[e.color() as uint] +
+                      ", style=filled]\n");
      }
 
-     for self.nodes.iter().advance |n1|
-     {
-       for n1.adj_edges.iter().advance |e|
-       {
-         file.write_str(n1.to_str() + " -- " +
-                        e.to_str() + "\n");
-       }
-     }
+ //    for self.nodes.iter().advance |n1|
+ //    {
+ //      for n1.adj_edges.iter().advance |e|
+ //      {
+ //        file.write_str(n1.to_str() + " -- " +
+ //                       e.to_str() + "\n");
+ //      }
+ //    }
 
-     for self.nodes.iter().advance |n1|
+     for self.edges.iter().advance |e1|
      {
-       for n1.adj_nodes.iter().advance |n2|
+       for e1.adj_edges.iter().advance |e2|
        {
-         if (!n2.is_marked())
+         if (!e2.is_marked())
          {
-           file.write_str(n1.to_str() + " -- " +
-                          n2.to_str() + "\n");
+           file.write_str(e1.to_str() + " -- " +
+                          e2.to_str() + "\n");
          }
        }
-       n1.mark();
+       e1.mark();
      }
+
+ //    for self.nodes.iter().advance |n1|
+ //    {
+ //      for n1.adj_nodes.iter().advance |n2|
+ //      {
+ //        if (!n2.is_marked())
+ //        {
+ //          file.write_str(n1.to_str() + " -- " +
+ //                         n2.to_str() + "\n");
+ //        }
+ //      }
+ //      n1.mark();
+ //    }
      file.write_str("}");
   }
 
@@ -356,10 +473,45 @@ impl Graph
     }
   }
 
-  pub fn color(&self)
+  // Warning changes order of edges in edge array
+  // DSATUR algorithm
+  pub fn color_edge_graph(&mut self)
   {
+    assert!(self.edges.len() > 0)
+
+    self.edges.qsort();
+    self.edges.head().set_color(0);
+
+    let mut nb_chrom : int = 0;
+    let mut uncolored = self.edges.len();
+
+
+    while uncolored > 1
+    {
+      assert!(nb_chrom >= 0);
+
+      let mut max_node = self.edges.iter().find_(|n| n.color() < 0).unwrap();
+      let mut max_dsat = max_node.dsat(nb_chrom as uint);
+      for self.edges.iter().enumerate().advance |(i, n)|
+      {
+        if (n.color() < 0)
+        {
+          let cur_dsat = n.dsat(nb_chrom as uint);
+          if (max_dsat < cur_dsat) || (max_dsat == cur_dsat) && (max_node.degree() < n.degree())
+          {
+            max_dsat = cur_dsat;
+            max_node = n;
+          }
+        }
+      }
+      uncolored = uncolored - 1;
+      nb_chrom = max_node.min_color().max(&nb_chrom);
+    }
+    println("nb_chrom : " + nb_chrom.to_str());
   }
 }
+
+
 
 fn main()
 {
@@ -380,9 +532,23 @@ fn main()
              6, 10, 11,
              6, 7, 11];
 
+//  let vb = ~[Vec3::new([0.0f64,0.0,0.0]), Vec3::new([0.0f64,2.0,0.0]), Vec3::new([0.0f64,4.0,0.0]),
+//            Vec3::new([2.0f64,0.0,0.0]), Vec3::new([2.0f64,2.0,0.0]), Vec3::new([2.0f64,4.0,0.0]) ,
+//            Vec3::new([4.0f64,0.0,0.0]), Vec3::new([4.0f64,2.0,0.0]), Vec3::new([4.0f64,4.0,0.0]) ];
+//
+//  let ib = ~[0u, 1, 4,
+//             1, 2, 4,
+//             4, 2, 5,
+//             0, 3, 4,
+//             3, 4, 6,
+//             6, 7, 4,
+//             4, 5, 7,
+//             7, 5, 8];
+
   let mesh = Mesh::new(vb, ib);
   let mut graph = Graph::new(mesh);
   graph.augment();
   graph.build_edge_graph();
+  graph.color_edge_graph();
   graph.write_to_file();
 }
