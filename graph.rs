@@ -2,79 +2,66 @@ extern mod extra;
 extern mod nalgebra;
 extern mod kiss3d;
 
-use std::iterator::Counter;
 use std::io;
 use std::uint;
 use std::vec;
 use extra::sort::Sort;
+use extra::deque::Deque;
 use nalgebra::vec::Vec3;
 use nalgebra::traits::scalar_op::ScalarMul;
 use kiss3d::window;
-use kiss3d::object::VerticesTriangles;
+use kiss3d::object::VerticesNormalsTriangles;
 
 type Vec3f = Vec3<f32>;
 
-
-pub struct Edge
+pub struct Node<T>
 {
   priv id:      uint,
   priv color:   int,
   priv marked:  bool,
-  adj_edges:    ~[@mut Edge],
-  node_1:       @mut Node,
-  node_2:       @mut Node,
+  priv dist:    uint,
+  adj:          ~[@mut Node<T>],
+  content:      T,
   pos:          Vec3f
 }
 
-impl Ord for Edge
+impl<T> Ord for Node<T>
 {
-  fn lt(&self, other: &Edge) -> bool
-  {
-    self.adj_edges.len() > other.adj_edges.len()
-  }
+  fn lt(&self, other: &Node<T>) -> bool
+  { self.adj.len() > other.adj.len() }
 
-  fn le(&self, other: &Edge) -> bool
-  {
-    self.adj_edges.len() >= other.adj_edges.len()
-  }
+  fn le(&self, other: &Node<T>) -> bool
+  { self.adj.len() >= other.adj.len() }
 
-  fn ge(&self, other: &Edge) -> bool
-  {
-    self.adj_edges.len() <= other.adj_edges.len()
-  }
+  fn ge(&self, other: &Node<T>) -> bool
+  { self.adj.len() <= other.adj.len() }
 
-  fn gt(&self, other: &Edge) -> bool
-  {
-    self.adj_edges.len() < other.adj_edges.len()
-  }
+  fn gt(&self, other: &Node<T>) -> bool
+  { self.adj.len() < other.adj.len() }
 }
 
-impl Eq for Edge
+impl<T> Eq for Node<T>
 {
-  fn eq(&self, other: &Edge) -> bool
-  {
-    self.adj_edges.len() == other.adj_edges.len()
-  }
+  fn eq(&self, other: &Node<T>) -> bool
+  { self.adj.len() == other.adj.len() }
 
-  fn ne(&self, other: &Edge) -> bool
-  {
-    self.adj_edges.len() != other.adj_edges.len()
-  }
+  fn ne(&self, other: &Node<T>) -> bool
+  { self.adj.len() != other.adj.len() }
 }
 
-impl Edge
+impl<T> Node<T>
 {
-  pub fn new(identifier: uint, col: int, n1: @mut Node, n2: @mut Node) -> Edge
+  fn new(id: uint, content: T, pos: Vec3f) -> Node<T>
   {
-    Edge
+    Node
     {
-      id:    identifier,
-      adj_edges:   ~[],
-      node_1: n1,
-      node_2: n2,
-      color: col,
-      marked: false,
-      pos: (n1.pos + n2.pos).scalar_mul(&0.5)
+      id :      id,
+      color :   -1,
+      marked :  false,
+      adj :     ~[],
+      content : content,
+      pos:      pos,
+      dist:     0
     }
   }
 
@@ -82,10 +69,10 @@ impl Edge
   {
     let mut buckets = vec::from_elem(nb_colors + 1, false);
 
-    for self.adj_edges.iter().advance |e|
+    for self.adj.iter().advance |n|
     {
-      if (e.color >= 0)
-      { buckets[e.color as uint] = true }
+      if (n.color >= 0)
+      { buckets[n.color as uint] = true }
     }
 
     let mut count = 0u;
@@ -98,134 +85,64 @@ impl Edge
     count
   }
 
+  pub fn index(&self) -> uint
+  { self.id as uint }
+
   pub fn degree(&self) -> uint
-  {
-    self.adj_edges.len()
-  }
+  { self.adj.len() }
+
+  pub fn reset_dist(&mut self)
+  { self.dist = 0 }
 
   pub fn unmark(&mut self)
-  {
-    self.marked = false
-  }
+  { self.marked = false }
 
   pub fn mark(&mut self)
-  {
-    self.marked = true
-  }
+  { self.marked = true }
 
   pub fn is_marked(&self) -> bool
-  {
-    self.marked
-  }
-  pub fn to_str(&self) -> ~str
-  {
-    "e" + self.id.to_str()
-  }
+  { self.marked }
 
-  pub fn equals(&self, e: &Edge) -> bool
-  {
-    e.id == self.id
-  }
+  pub fn to_str(&self) -> ~str
+  { self.id.to_str() }
+
+  pub fn equals(&self, n: &Node<T>) -> bool
+  { n.id == self.id }
 
   pub fn color(&self) -> int
-  {
-    self.color
-  }
+  { self.color }
 
   pub fn set_color(&mut self, col: int)
-  {
-    self.color = col;
-  }
+  { self.color = col; }
 
-  pub fn min_color(&mut self) -> int
+  pub fn color_with_min(&mut self) -> int
   {
-    let mut max_col = self.adj_edges.head().color;
-    for self.adj_edges.iter().advance |e|
+    let mut max_col = self.adj.head().color;
+    for self.adj.iter().advance |n|
     {
-      if (max_col < e.color)
-      { max_col = e.color }
+      if (max_col < n.color)
+      { max_col = n.color }
     }
-
     self.color = max_col + 1;
     self.color
   }
 
-  pub fn is_adj_to(&self, edge: &Edge) -> bool
+  pub fn is_adj_to(&self, node: &Node<T>) -> bool
   {
-    for self.adj_edges.iter().advance |n1|
+    for self.adj.iter().advance |n|
     {
-      if n1.equals(edge)
+      if n.equals(node)
       { return true }
     }
     return false;
   }
-}
 
-
-pub struct Node
-{
-  priv id:      uint,
-  pos:          Vec3f,
-  adj_edges:    ~[@mut Edge],
-  adj_nodes:    ~[@mut Node],
-  priv marked: bool
-}
-
-impl Node
-{
-  pub fn new(identifier: uint, pos: Vec3f) -> Node
-  {
-    Node
-    {
-      id:    identifier,
-      adj_edges:   ~[],
-      adj_nodes:   ~[],
-      pos: pos,
-      marked: false
-    }
-  }
-
-  pub fn unmark(&mut self)
-  {
-    self.marked = false
-  }
-
-  pub fn mark(&mut self)
-  {
-    self.marked = true
-  }
-
-  pub fn is_marked(&self) -> bool
-  {
-    self.marked
-  }
-
-  pub fn to_str(&self) -> ~str
-  {
-    self.id.to_str()
-  }
-
-  pub fn equals(&self, e: &Node) -> bool
-  {
-    e.id == self.id
-  }
-
-  pub fn clear_adj_nodes(&mut self)
-  {
-    self.adj_nodes.clear();
-  }
-
-  pub fn is_adj_to(&self, node: &Node) -> bool
-  {
-    self.adj_nodes.iter().any_(|n1| n1.equals(node))
-  }
-
-  pub fn nb_common_adj(&self, node: &Node) -> uint
+  pub fn nb_common_adj(&self, node: &Node<T>) -> uint
   {
     let mut nb_common = 0;
-    for self.adj_nodes.iter().advance |n1|
+    for self.adj.iter().advance |n1|
     {
-      for node.adj_nodes.iter().advance |n2|
+      for node.adj.iter().advance |n2|
       {
         if n1.equals(*n2)
         { nb_common = nb_common + 1}
@@ -234,77 +151,151 @@ impl Node
     nb_common
   }
 
-  priv fn share_2_adjs(&self, node: &Node) -> bool
+  priv fn share_k_adjs(&self, node: &Node<T>, k: uint) -> bool
   {
     let mut count = 0;
-    for self.adj_nodes.iter().advance |n1|
+    for self.adj.iter().advance |n1|
     {
-      for node.adj_nodes.iter().advance |n2|
+      for node.adj.iter().advance |n2|
       {
         if n1.equals(*n2)
         { count = count + 1 }
-        if count >= 2
-        { return true }
+        if count >= k
+        {  return true }
       }
     }
     return false
   }
 
-  pub fn get_2_distant_adjs(&self) -> ~[@mut Node]
+  // Must be used with graph unmarked
+  pub fn distant_nodes(@mut self, pred: &fn (&Node<T>) -> bool, d: uint) -> ~[@mut Node<T>]
   {
-    let mut dist_nodes : ~[@mut Node] = ~[];
-    for self.adj_nodes.iter().advance |n1|
+    let mut node_queue: ~Deque<@mut Node<T>> = ~Deque::new();
+    let mut res_nodes:  ~[@mut Node<T>] = ~[];
+
+    self.marked = true;
+    self.dist   = 0;
+
+    node_queue.add_back(self);
+
+    while !node_queue.is_empty()
     {
-      for n1.adj_nodes.iter().advance |n2|
+      let n = node_queue.pop_front();
+      for uint::iterate(0u, n.adj.len()) |i|
       {
-        if (!self.is_adj_to(*n2)) && (self.share_2_adjs(*n2)) && (!self.equals(*n2))
-        { dist_nodes.push(*n2) }
+        let n2 : @mut Node<T> = n.adj[i];
+        if !n2.marked
+        {
+          n2.dist = n.dist + 1;
+          if n2.dist < d
+          { node_queue.add_back(n2) }
+          else if n2.dist == d && pred(n2)
+          { res_nodes.push(n2) }
+        }
+        n2.marked = true;
       }
     }
-    dist_nodes
+    res_nodes
   }
 
-  pub fn connect_nodes(n1: @mut Node, n2: @mut Node)
+  pub fn connect(n1: @mut Node<T>, n2: @mut Node<T>)
   {
     if !n2.is_adj_to(n1)
     {
-      n1.adj_nodes.push(n2);
-      n2.adj_nodes.push(n1);
+      n1.adj.push(n2);
+      n2.adj.push(n1);
+    }
+  }
+}
+
+
+pub struct Edge
+{
+  node_1: @mut Node<Vertex>,
+  node_2: @mut Node<Vertex>
+}
+
+impl Edge
+{
+  pub fn new(n1: @mut Node<Vertex>, n2: @mut Node<Vertex>) -> Edge
+  {
+    Edge
+    {
+      node_1: n1,
+      node_2: n2
+    }
+  }
+}
+
+pub struct EdgeSet
+{
+  edges: ~[@mut Node<Edge>]
+}
+
+impl EdgeSet
+{
+  pub fn new(ne: @mut Node<Edge>) -> EdgeSet
+  {
+    EdgeSet
+    {
+      edges: ~[ne]
     }
   }
 
+  pub fn is_singleton(&self) -> bool
+  {
+    self.edges.len() == 1
+  }
+
+}
+
+pub struct Vertex
+{
+  edges: ~[@mut Node<Edge>],
+  pos:   Vec3f
+}
+
+impl Vertex
+{
+  pub fn new(pos: Vec3f) -> Vertex
+  {
+    Vertex
+    {
+      edges: ~[],
+      pos:   pos
+    }
+  }
 
   pub fn connect_edges(&mut self)
   {
-    for self.adj_edges.iter().advance |e1|
+    for self.edges.iter().advance |e1|
     {
-      for self.adj_edges.iter().advance |e2|
+      for self.edges.iter().advance |e2|
       {
         if (e1.id != e2.id) && !e1.is_adj_to(*e2)
-        {
-          e1.adj_edges.push(*e2);
-          e2.adj_edges.push(*e1);
-        }
+        { Node::connect(*e1, *e2) }
       }
     }
   }
 
-  pub fn split(node: @mut Node, all_edges: &mut ~[@mut Edge])
+  //To be used with graph unmarked
+  pub fn split(node: @mut Node<Vertex>, all_edges: &mut ~[@mut Node<Edge>])
   {
-    for uint::iterate(0u, node.adj_nodes.len()) |i|
+    for uint::iterate(0u, node.adj.len()) |i|
     {
-      let a = node.adj_nodes[i];
-      if !a.marked
+      let a = node.adj[i];
+      if !a.is_marked()
       {
-        let edge = @mut Edge::new(all_edges.len() + 1, -1, a, node);
+        let edge = Edge::new(a, node);
+        let pos = (a.content.pos + node.content.pos).scalar_mul(&0.5);
+        let edge_node = @mut Node::new(all_edges.len(), edge, pos);
 
-        node.adj_edges.push(edge);
-        a.adj_edges.push(edge);
-
-        all_edges.push(edge);
+        node.content.edges.push(edge_node);
+        a.content.edges.push(edge_node);
+        all_edges.push(edge_node);
       }
     }
-    node.marked = true;
+    node.mark();
   }
 }
 
@@ -328,64 +319,70 @@ impl Mesh
 
 pub struct Graph
 {
-  nodes: ~[@mut Node],
-  edges: ~[@mut Edge]
+  nodes: ~[@mut Node<Vertex>],
+  edges: ~[@mut Node<Edge>],
+  edge_sets: ~[@mut Node<EdgeSet>]
 }
 
 impl Graph
 {
   pub fn new(mesh: Mesh) -> Graph
   {
-    let mut nodes: ~[@mut Node] = ~[];
+    let mut nodes: ~[@mut Node<Vertex>] = ~[];
     for mesh.vbuff.iter().enumerate().advance |(vid, v)|
-    {
-      nodes.push(@mut Node::new (vid, *v));
-    }
+    { nodes.push(@mut Node::new(vid, Vertex::new(*v), *v)) }
+
 
     for mesh.ibuff.iter().advance |&(id1, id2, id3)|
     {
-      Node::connect_nodes(nodes[id1], nodes[id2]);
-      Node::connect_nodes(nodes[id1], nodes[id3]);
-      Node::connect_nodes(nodes[id2], nodes[id1]);
-      Node::connect_nodes(nodes[id2], nodes[id3]);
-      Node::connect_nodes(nodes[id3], nodes[id2]);
-      Node::connect_nodes(nodes[id3], nodes[id1]);
+      Node::connect(nodes[id1], nodes[id2]);
+      Node::connect(nodes[id1], nodes[id3]);
+      Node::connect(nodes[id2], nodes[id3]);
     }
 
     Graph
     {
       nodes: nodes,
-      edges: ~[]
+      edges: ~[],
+      edge_sets: ~[]
     }
   }
 
   pub fn augment(&mut self)
   {
-    let mut to_connect : ~[~[@mut Node]] = ~[];
-    for self.nodes.iter().advance |n|
+    let mut to_connect : ~[~[@mut Node<Vertex>]] = ~[];
+    for uint::iterate(0u, self.nodes.len()) |i|
     {
-      to_connect.push(n.get_2_distant_adjs());
+      self.unmark();
+      let n1 = self.nodes[i];
+      to_connect.push(n1.distant_nodes(|n2| n1.share_k_adjs(n2, 2), 2));
     }
+
     for self.nodes.iter().enumerate().advance |(i, n)|
     {
       for to_connect[i].iter().advance |n2|
-      { Node::connect_nodes(*n, *n2) }
+      { Node::connect(*n, *n2) }
     }
   }
 
   pub fn unmark(&mut self)
   {
      for self.nodes.iter().advance |n1|
-     {
-       n1.unmark();
-     }
+     { n1.unmark() }
      for self.edges.iter().advance |e1|
-     {
-       e1.unmark();
-     }
+     { e1.unmark() }
   }
 
-  priv fn write_simple(&mut self)
+  pub fn reset_dists(&mut self)
+  {
+     for self.nodes.iter().advance |n1|
+     { n1.reset_dist() }
+     for self.edges.iter().advance |e1|
+     { e1.unmark() }
+  }
+
+
+  pub fn write_simple(&mut self)
   {
      let path = Path("./simple.dot");
      let file = io::file_writer(&path, [io::Create]).get();
@@ -398,13 +395,46 @@ impl Graph
      }
      for self.edges.iter().advance |e|
      {
-       file.write_str(e.node_1.to_str() + " -- " +
-                      e.node_2.to_str() + "\n");
+       file.write_str(e.content.node_1.to_str() + " -- " +
+                      e.content.node_2.to_str() + "\n");
+     }
+
+     for self.nodes.iter().advance |e1|
+     {
+       for e1.adj.iter().advance |e2|
+       {
+         if (!e2.is_marked())
+         {
+           file.write_str(e1.to_str() + " -- " +
+                          e2.to_str() + "\n");
+         }
+       }
+       e1.mark();
      }
      file.write_str("}");
   }
 
-  priv fn write_line(&mut self)
+  pub fn export(&mut self) -> (~[Vec3<f64>], ~[(uint, uint)])
+  {
+    let mut vertices: ~[Vec3<f64>] = ~[];
+    let mut edges: ~[(uint, uint)] = ~[];
+
+     self.unmark();
+     for self.nodes.iter().advance |n|
+     {
+       vertices.push(Vec3::new([n.pos.at[0] as f64,
+                                n.pos.at[1] as f64,
+                                n.pos.at[2] as f64]));
+     }
+
+     for self.edges.iter().advance |e|
+     { edges.push((e.content.node_1.index(), e.content.node_2.index())) }
+
+     (vertices, edges)
+
+  }
+
+  pub fn write_line_graph(&mut self)
   {
      let path = Path("./line.dot");
      let file = io::file_writer(&path, [io::Create]).get();
@@ -425,7 +455,7 @@ impl Graph
 
      for self.edges.iter().advance |e1|
      {
-       for e1.adj_edges.iter().advance |e2|
+       for e1.adj.iter().advance |e2|
        {
          if (!e2.is_marked())
          {
@@ -439,30 +469,41 @@ impl Graph
   }
 
 
-  pub fn write_to_file(&mut self)
-  {
-    self.write_simple();
-   // self.write_line();
-  }
-
   // Warning : erases color
   pub fn build_edge_graph(&mut self)
   {
     self.unmark();
     for self.nodes.iter().advance |n|
-    {
-      Node::split(*n, &mut self.edges);
-    }
+    { Vertex::split(*n, &mut self.edges) }
 
     for self.nodes.iter().advance |n|
     {
-      n.clear_adj_nodes();
-      n.connect_edges();
+      n.adj.clear();
+      n.content.connect_edges();
     }
   }
 
+  // Requires to have built the edge graph
+//  pub fn build_edge_set_graph(&mut self, dist: uint)
+//  {
+//    self.unmark();
+//
+//    for self.edges.iter().enumerate().advance |(i, e)|
+//    { edge_sets.push(Node::new(i, EdgeSet::new(e), e.pos)); }
+//
+//    for self.edges.iter().advance |e|
+//    {
+//      let dist_nodes = e.distant_nodes(|e2| es.is_singleton(), dist);
+//      for dist_nodes.iter().advance |dn|
+//      {
+//      }
+//    }
+//
+//  }
+
   // Warning changes order of edges in edge array
   // DSATUR algorithm
+
   pub fn color_edge_graph(&mut self)
   {
     assert!(self.edges.len() > 0)
@@ -493,7 +534,7 @@ impl Graph
         }
       }
       uncolored = uncolored - 1;
-      nb_chrom = max_node.min_color().max(&nb_chrom);
+      nb_chrom = max_node.color_with_min().max(&nb_chrom);
     }
     println("nb_chrom : " + nb_chrom.to_str());
     println("mean : " + (self.edges.len() as float / (nb_chrom as float)).to_str());
@@ -506,26 +547,27 @@ fn main()
 {
   do window::Window::spawn(~"Mesh") |w|
   {
-    let q = w.add_quad(10.0, 10.0, 50, 50, true);
+    let q = w.add_quad(10.0, 10.0, 5, 5);
     match *q.geometry()
     {
-      Some(ref g) => match *g
+      VerticesNormalsTriangles(ref v, _, ref t) =>
       {
-        VerticesTriangles(ref v, ref t) =>
-        {
-          let mesh = Mesh::new(v.clone(), t.clone());
-          let mut graph = Graph::new(mesh);
-          println("Augmenting graph...");
-          graph.augment();
-          println("Creating line graph...");
-          graph.build_edge_graph();
-          println("Coloring edge graph...");
-          graph.color_edge_graph();
-          println("Writting to file...");
-          graph.write_to_file();
-          println("Done");
-        }
-      },
+        let mesh = Mesh::new(v.clone(), t.clone());
+        let mut graph = Graph::new(mesh);
+        println("Augmenting graph...");
+        graph.augment();
+        println("Creating line graph...");
+        graph.build_edge_graph();
+        println("Coloring edge graph...");
+//        graph.color_edge_graph();
+        println("Writting to file...");
+        graph.write_simple();
+//        graph.write_line_graph();
+        let (v, e) = graph.export();
+        println(v.to_str());
+        println(e.to_str());
+        println("Done");
+      }
       _ => { }
     }
   }
