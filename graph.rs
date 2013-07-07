@@ -1,6 +1,8 @@
 extern mod nalgebra;
 
 use std::iterator::Counter;
+use std::io;
+use std::uint;
 use nalgebra::vec::Vec3;
 
 type Vec3f = Vec3<f64>;
@@ -48,11 +50,8 @@ impl Edge
   {
     for self.adj_edges.iter().advance |n1|
     {
-      for edge.adj_edges.iter().advance |n2|
-      {
-        if n1.equals(*n2)
-        { return true }
-      }
+      if n1.equals(edge)
+      { return true }
     }
     return false;
   }
@@ -80,6 +79,11 @@ impl Node
     }
   }
 
+  pub fn to_str(&self) -> ~str
+  {
+    self.id.to_str()
+  }
+
   pub fn equals(&self, e: &Node) -> bool
   {
     e.id == self.id
@@ -94,11 +98,8 @@ impl Node
   {
     for self.adj_nodes.iter().advance |n1|
     {
-      for node.adj_nodes.iter().advance |n2|
-      {
-        if n1.equals(*n2)
-        { return true }
-      }
+      if n1.equals(node)
+      { return true }
     }
     return false;
   }
@@ -133,8 +134,11 @@ impl Node
 
   pub fn connect_nodes(n1: @mut Node, n2: @mut Node)
   {
-    n1.adj_nodes.push(n2);
-    n2.adj_nodes.push(n1);
+    if !n2.is_adj_to(n1)
+    {
+      n1.adj_nodes.push(n2);
+      n2.adj_nodes.push(n1);
+    }
   }
 
 
@@ -155,9 +159,10 @@ impl Node
 
   pub fn split(node: @mut Node, all_edges: &mut ~[@mut Edge])
   {
-    for node.adj_nodes.iter().advance |a|
+    for uint::iterate(0u, node.adj_nodes.len()) |i|
     {
-      let edge = @mut Edge::new(all_edges.len() + 1, -1, *a, node);
+      let a = node.adj_nodes[i];
+      let edge = @mut Edge::new(all_edges.len() + 1, -1, a, node);
 
       node.adj_edges.push(edge);
       a.adj_edges.push(edge);
@@ -211,12 +216,17 @@ impl Graph
       let id2 = mesh.ibuff[i + 1];
       let id3 = mesh.ibuff[i + 2];
 
-      nodes[id1].adj_nodes.push(nodes[id2]);
-      nodes[id1].adj_nodes.push(nodes[id3]);
-      nodes[id2].adj_nodes.push(nodes[id1]);
-      nodes[id2].adj_nodes.push(nodes[id3]);
-      nodes[id3].adj_nodes.push(nodes[id1]);
-      nodes[id3].adj_nodes.push(nodes[id2]);
+      Node::connect_nodes(nodes[id1], nodes[id2]);
+      Node::connect_nodes(nodes[id1], nodes[id3]);
+      Node::connect_nodes(nodes[id2], nodes[id1]);
+      Node::connect_nodes(nodes[id2], nodes[id3]);
+      Node::connect_nodes(nodes[id3], nodes[id2]);
+      Node::connect_nodes(nodes[id3], nodes[id1]);
+    }
+
+    for nodes.iter().advance |n|
+    {
+      println(n.to_str() + " has " + n.adj_nodes.len().to_str() + " neighbors");
     }
 
     Graph
@@ -234,6 +244,22 @@ impl Graph
       for n_dist_2.iter().advance |n2|
       { Node::connect_nodes(*n, *n2) }
     }
+  }
+
+  pub fn write_to_file(&self)
+  {
+     let path = Path("./out.dot");
+     let file = io::file_writer(&path, [io::Create]).get();
+     file.write_str("graph graphname {\n");
+
+     for self.nodes.iter().advance |n1|
+     {
+       for n1.adj_nodes.iter().advance |n2|
+       {
+         file.write_str(n1.to_str() + " -- " + n2.to_str() + "\n");
+       }
+     }
+     file.write_str("}");
   }
 
   // Warning : erases color
@@ -258,4 +284,26 @@ impl Graph
 
 fn main()
 {
+  let vb = ~[Vec3::new([0.0f64,0.0,0.0]), Vec3::new([0.0f64,1.0,0.0]), Vec3::new([0.0f64,2.0,0.0]),Vec3::new([0.0f64,3.0,0.0]),
+            Vec3::new([1.0f64,0.0,0.0]), Vec3::new([1.0f64,1.0,0.0]), Vec3::new([1.0f64,2.0,0.0]), Vec3::new([1.0f64,3.0,0.0]),
+            Vec3::new([2.0f64,0.0,0.0]), Vec3::new([2.0f64,1.0,0.0]), Vec3::new([2.0f64,2.0,0.0]), Vec3::new([2.0f64,3.0,0.0])];
+
+  let ib = ~[0u, 1, 5,
+             1, 2, 5,
+             2, 3, 6,
+             0, 4, 5,
+             2, 5, 6,
+             3, 6, 7,
+             4, 5, 8,
+             8, 9, 5,
+             9, 5, 6,
+             9, 10, 6,
+             6, 10, 11,
+             6, 7, 11];
+
+  let mesh = Mesh::new(vb, ib);
+  let mut graph = Graph::new(mesh);
+//  graph.build_edge_graph();
+
+  graph.write_to_file();
 }
