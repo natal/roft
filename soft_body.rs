@@ -1,4 +1,4 @@
-use std::num::{Zero, abs};
+use std::num::Zero;
 use nalgebra::vec::Vec0;
 use nalgebra::traits::division_ring::DivisionRing;
 use nalgebra::traits::norm::Norm;
@@ -9,9 +9,9 @@ use nphysics::constraint::projected_gauss_seidel_solver::projected_gauss_seidel_
 
 pub struct PointMass<N, V>
 {
-  invmass:  N,
-  velocity: V,
-  position: V,
+  invmass:    N,
+  velocity:   V,
+  position:   V,
 }
 
 pub struct ConstraintsGeometry<N>
@@ -25,11 +25,12 @@ pub struct ConstraintsGeometry<N>
 
 pub struct SoftBody<N, V>
 {
+  ext_forces:  V,
   points:      ~[PointMass<N, V>],
   constraints: ~[ConstraintsGeometry<N>]
 }
 
-impl<N: DivisionRing + Eq + Ord + Clone,
+impl<N: DivisionRing + NumCast + Signed + Eq + Ord + Clone,
      V: VectorSpace<N> + Norm<N> + Dot<N> + Clone>
     SoftBody<N, V>
 {
@@ -50,9 +51,9 @@ impl<N: DivisionRing + Eq + Ord + Clone,
     for vbuf.iter().zip(invmasses.iter()).advance |(v, m)|
     {
       points.push(PointMass {
-        invmass:  m.clone(),
-        velocity: Zero::zero(),
-        position: v.clone(),
+        invmass:    m.clone(),
+        velocity:   Zero::zero(),
+        position:   v.clone(),
       });
     }
 
@@ -72,23 +73,33 @@ impl<N: DivisionRing + Eq + Ord + Clone,
 
     SoftBody {
       points:      points,
-      constraints: constraints
+      constraints: constraints,
+      ext_forces:  Zero::zero()
     }
   }
 
   pub fn integrate(&mut self, dt: &N, fext: &V)
   {
+    self.ext_forces = fext.clone();
+
     for self.points.mut_iter().advance |p|
     {
       if !p.invmass.is_zero()
       {
-        p.velocity = p.velocity + fext.scalar_mul(dt);
+        let     sqnorm   = NumCast::from::<N, float>(0.1) * p.velocity.sqnorm();
+        let     vnorm    = p.velocity.normalized();
+        let mut friction =  Zero::zero::<V>();
+        
+        if !sqnorm.is_zero()
+        { friction = -vnorm.scalar_mul(&(sqnorm * *dt)) }
+
+        p.velocity = p.velocity + fext.scalar_mul(dt) + friction;
         p.position = p.position + p.velocity.scalar_mul(dt);
       }
     }
   }
 
-  pub fn collect_constraints(&self, out: &mut ~[VelocityConstraint<V, Vec0<N>, N>])
+  pub fn collect_constraints(&self, dt: N, out: &mut ~[VelocityConstraint<V, Vec0<N>, N>])
   {
     for self.constraints.iter().advance |c|
     {
@@ -98,7 +109,15 @@ impl<N: DivisionRing + Eq + Ord + Clone,
       let m1 = self.points[c.rb1].invmass.clone();
       let m2 = self.points[c.rb2].invmass.clone();
 
-      let limit = abs(c.stiffness * (length - c.rest_length));
+      let limit = (c.stiffness * (length - c.rest_length)).abs();
+
+      let mut dvel = Zero::zero::<N>();
+      
+      if !m2.is_zero()
+      { dvel = dvel - (self.points[c.rb2].velocity + self.ext_forces.scalar_mul(&dt)).dot(&normal) }
+
+      if !m1.is_zero()
+      { dvel = dvel + (self.points[c.rb1].velocity + self.ext_forces.scalar_mul(&dt)).dot(&normal) }
 
       if true // length != c.rest_length
       {
@@ -119,8 +138,7 @@ impl<N: DivisionRing + Eq + Ord + Clone,
             unit_impulse:       Zero::zero(),
             lobound:            -limit,
             hibound:            limit,
-            objective:          -(self.points[c.rb2].velocity -
-                                  self.points[c.rb1].velocity).dot(&normal),
+            objective:          dvel,
             id1:                if m1.is_zero() { -1 } else { c.rb1 as int },
             id2:                if m2.is_zero() { -1 } else { c.rb2 as int },
 
@@ -133,14 +151,14 @@ impl<N: DivisionRing + Eq + Ord + Clone,
 }
 
 impl<V: VectorSpace<N> + Dot<N> + Norm<N> + Copy + Clone + ToStr,
-     N:  DivisionRing + Orderable + Ord + ToStr + Eq + Clone + Copy>
+     N:  DivisionRing + Orderable + NumCast + Signed + Ord + ToStr + Eq + Clone + Copy>
      SoftBody<N, V>
 {
-  pub fn solve(&mut self)
+  pub fn solve(&mut self, dt: N)
   {
     let mut constraints = ~[];
 
-    self.collect_constraints(&mut constraints);
+    self.collect_constraints(dt, &mut constraints);
   
     let res = projected_gauss_seidel_solve(constraints,
                                            self.points.len(),
