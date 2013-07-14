@@ -6,7 +6,8 @@ use std::io;
 use std::uint;
 use std::vec;
 use extra::sort::Sort;
-use extra::deque::Deque;
+use extra::container::Deque;
+use extra::ringbuf::RingBuf;
 use nalgebra::vec::Vec3;
 use nalgebra::traits::scalar_op::ScalarMul;
 use kiss3d::window;
@@ -170,17 +171,17 @@ impl<T> Node<T>
   // Must be used with graph unmarked
   pub fn distant_nodes(@mut self, pred: &fn (&Node<T>) -> bool, d: uint) -> ~[@mut Node<T>]
   {
-    let mut node_queue: ~Deque<@mut Node<T>> = ~Deque::new();
+    let mut node_queue: ~RingBuf<@mut Node<T>> = ~RingBuf::new();
     let mut res_nodes:  ~[@mut Node<T>] = ~[];
 
     self.marked = true;
     self.dist   = 0;
 
-    node_queue.add_back(self);
+    node_queue.push_back(self);
 
     while !node_queue.is_empty()
     {
-      let n = node_queue.pop_front();
+      let n = node_queue.pop_front().unwrap();
       for uint::iterate(0u, n.adj.len()) |i|
       {
         let n2 : @mut Node<T> = n.adj[i];
@@ -188,7 +189,7 @@ impl<T> Node<T>
         {
           n2.dist = n.dist + 1;
           if n2.dist < d
-          { node_queue.add_back(n2) }
+          { node_queue.push_back(n2) }
           else if n2.dist == d && pred(n2)
           { res_nodes.push(n2) }
         }
