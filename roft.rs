@@ -12,8 +12,8 @@ fn main()
 {
   do window::Window::spawn(~"Soft body demo.") |w|
   {
-    let hsub = 25;
-    let quad = w.add_quad(10.0, 10.0, hsub, 25).set_color(random(), random(), random());
+    let hsub = 6;
+    let quad = w.add_quad(10.0, 10.0, hsub, 6).set_color(random(), random(), random());
 
     let soft_body = @mut quad_to_soft_body(quad, hsub);
 
@@ -50,8 +50,13 @@ fn quad_to_soft_body(quad: @mut Object, w: uint) -> SoftBody<f64, Vec3<f64>>
       let     mesh  = Mesh::new(vs.clone(), ts.clone());
       let mut graph = Graph::new(mesh);
 
-      graph.augment();
+      //graph.augment();
       graph.build_edge_graph();
+      println("Building blob graph");
+      graph.build_blob_graph(2);
+      graph.write_blob_graph();
+      graph.write_line_graph();
+
 
       let (mvs, mvi) = graph.export();
 

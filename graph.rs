@@ -32,7 +32,7 @@ impl<T> Blob<T>
     }
   }
 
-  pub fn merge(&mut self, b: @mut Blob<T>)
+  pub fn merge(&mut self, b: &Blob<T>)
   {
     for b.sub_nodes.iter().advance |sb|
     {
@@ -102,7 +102,7 @@ impl Graph
     {
       self.unmark();
       let n1 = self.nodes[i];
-      to_connect.push(n1.distant_nodes(|n2| n1.share_k_adjs(n2, 2), 2));
+      to_connect.push(n1.distant_nodes(|n2| (n2.dist() == 2 && n1.share_k_adjs(n2, 2)), 2));
     }
 
     for self.nodes.iter().enumerate().advance |(i, n)|
@@ -120,6 +120,16 @@ impl Graph
      { e.unmark() }
      for self.blobs.iter().advance |b|
      { b.unmark() }
+  }
+
+  pub fn intern_unmark(&mut self)
+  {
+     for self.nodes.iter().advance |n|
+     { n.intern_unmark() }
+     for self.edges.iter().advance |e|
+     { e.intern_unmark() }
+     for self.blobs.iter().advance |b|
+     { b.intern_unmark() }
   }
 
   pub fn reset_dists(&mut self)
@@ -166,34 +176,31 @@ impl Graph
   pub fn build_blob_graph(&mut self, dist: uint)
   {
 
-    // Build the singletons
+    // Build the singleton blob graph
     self.unmark();
     let mut blob_queue: ~RingBuf<@mut Node<Blob<Edge>>> = ~RingBuf::new();
 
     self.edges.head().mark();
-    let mut i = 0;
 
-    let first_blob = Blob::new(*self.edges.head());
+    for self.edges.iter().enumerate().advance |(i, e)|
+    {
+      e.id = i;
+      self.blobs.push(@mut Node::new(i, Blob::new(*e), e.pos));
+    }
 
-    blob_queue.push_back(@mut Node::new(i, first_blob, self.edges.head().pos));
+    blob_queue.push_back(*self.blobs.head());
 
     while !blob_queue.is_empty()
     {
       let current_blob = blob_queue.pop_front().unwrap();
-      if current_blob.content.is_singleton()
-      {
-        self.blobs.push(current_blob);
+      current_blob.content.sub_nodes.head().mark();
         // Iterate through edge-node adjacents neighbors
-        for current_blob.content.sub_nodes.head().adj.iter().advance |e|
+      for current_blob.content.sub_nodes.head().adj.iter().advance |e|
+      {
+        if !e.is_marked()
         {
-          if !e.is_marked()
-          {
-            i = i + 1;
-            let b = @mut Node::new(i, Blob::new(*e), e.pos);
-            Node::connect(current_blob, b);
-            blob_queue.push_back(b);
-            e.mark();
-          }
+          Node::connect(current_blob, self.blobs[e.id()]);
+          blob_queue.push_back(self.blobs[e.id()]);
         }
       }
     }
@@ -201,23 +208,31 @@ impl Graph
     //Make the actual blobs by eating the distant neighbors
     self.unmark();
 
-    let blob = self.blobs.head();
-    blob.mark();
-    blob_queue.push_back(*blob);
+    blob_queue.push_back(*self.blobs.head());
 
+    self.blobs.clear();
     while !blob_queue.is_empty()
     {
       let b = blob_queue.pop_front().unwrap();
+      if !b.is_marked()
+      {
 
-      let dist_nodes: ~[@mut Node<Blob<Edge>>]
-                        = b.distant_nodes(|n| !n.is_marked(), dist);
+        self.blobs.push(b);
+        self.intern_unmark();
+        let dist_nodes: ~[@mut Node<Blob<Edge>>]
+          = b.distant_nodes(|n| (n.dist() <= dist && !n.is_marked()), dist);
 
-      for dist_nodes.iter().advance |db|
-      { b.eat(*db) }
+        for dist_nodes.iter().advance |db|
+        {
+          b.content.merge(&db.content);
+          Node::eat(b, *db);
+        }
 
-      for b.adj.iter().advance |ab|
-      { blob_queue.push_back(*ab) }
-      b.mark();
+        for b.adj.iter().advance |ab|
+        { blob_queue.push_back(*ab) }
+
+        b.mark();
+      }
     }
   }
 
@@ -256,7 +271,7 @@ impl Graph
      {
        file.write_str(e.to_str() + " [pos=\"" + e.pos.at[0].to_str() + "," +
                       e.pos.at[1].to_str() + "!\", color="+
-                      colors[e.color() as uint] +
+                      colors[(e.color() + 1) as uint] +
                       ", style=filled]\n");
      }
 
@@ -271,6 +286,40 @@ impl Graph
          }
        }
        e1.mark();
+     }
+     file.write_str("}");
+  }
+
+  pub fn write_blob_graph(&mut self)
+  {
+     let path = Path("./blob.dot");
+     let file = io::file_writer(&path, [io::Create]).get();
+     let colors = ~["azure", "skyblue", "pink", "crimson", "peru",
+                    "orange", "gold", "lawngreen", "cyan", "blueviolet",
+                    "lavender", "mediumblue", "limegreen", "chocolate", "plum",
+                    "yellowgreen", "royalblue", "hotpink", "darkslategray",
+                    "darkorange", "beige", "aliceblue", "tomato", "salmon"];
+     file.write_str("graph blob {\n");
+     self.unmark();
+
+     for self.blobs.iter().enumerate().advance |(i, b)|
+     {
+       for b.content.sub_nodes.iter().advance |e1|
+       {
+         file.write_str(e1.to_str() + " [pos=\"" + e1.pos.at[0].to_str() + "," +
+                        e1.pos.at[1].to_str() + "!\", color="+
+                        colors[i] +
+                        ", style=filled]\n");
+         for e1.adj.iter().advance |e2|
+         {
+           if (!e2.is_marked())
+           {
+             file.write_str(e1.to_str() + " -- " +
+                            e2.to_str() + "\n");
+           }
+         }
+         e1.mark();
+       }
      }
      file.write_str("}");
   }

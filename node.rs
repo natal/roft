@@ -12,9 +12,10 @@ type Vec3f = Vec3<f32>;
 
 pub struct Node<T>
 {
-  priv id:      uint,
+  id:      uint,
   priv color:   int,
   priv marked:  bool,
+  priv intern_mark: bool,
   priv dist:    uint,
   adj:          ~[@mut Node<T>],
   content:      T,
@@ -57,7 +58,8 @@ impl<T> Node<T>
       adj :     ~[],
       content : content,
       pos:      pos,
-      dist:     0
+      dist:     0,
+      intern_mark: false
     }
   }
 
@@ -81,6 +83,11 @@ impl<T> Node<T>
     count
   }
 
+  pub fn dist(&self) -> uint
+  {
+    self.dist
+  }
+
   pub fn index(&self) -> uint
   { self.id as uint }
 
@@ -92,6 +99,9 @@ impl<T> Node<T>
 
   pub fn unmark(&mut self)
   { self.marked = false }
+
+  pub fn intern_unmark(&mut self)
+  { self.intern_mark = false }
 
   pub fn mark(&mut self)
   { self.marked = true }
@@ -169,7 +179,7 @@ impl<T> Node<T>
     let mut node_queue: ~RingBuf<@mut Node<T>> = ~RingBuf::new();
     let mut res_nodes:  ~[@mut Node<T>] = ~[];
 
-    self.marked = true;
+    self.intern_mark = true;
     self.dist   = 0;
 
     node_queue.push_back(self);
@@ -180,15 +190,15 @@ impl<T> Node<T>
       for uint::iterate(0u, n.adj.len()) |i|
       {
         let n2 : @mut Node<T> = n.adj[i];
-        if !n2.marked
+        if !n2.intern_mark
         {
           n2.dist = n.dist + 1;
           if n2.dist < d
           { node_queue.push_back(n2) }
-          else if n2.dist == d && pred(n2)
+          if pred(n2)
           { res_nodes.push(n2) }
         }
-        n2.marked = true;
+        n2.intern_mark = true;
       }
     }
     res_nodes
@@ -203,11 +213,21 @@ impl<T> Node<T>
     }
   }
 
-  pub fn eat(@mut self, n: @mut Node<T>)
+  pub fn id(&self) -> uint
   {
-    for self.adj.iter().advance |n2|
-    { Node::connect(self, *n2) }
-    n.adj.clear();
+    self.id
+  }
+
+  pub fn eat(n1: @mut Node<T>, n2: @mut Node<T>)
+  {
+    let mut to_connect: ~[@mut Node<T>] = ~[];
+    for n1.adj.iter().advance |n3|
+    { to_connect.push(*n3) }
+
+    for to_connect.iter().advance |n3|
+    { Node::connect(n1, *n3) }
+
+    n2.adj.clear();
   }
 }
 
