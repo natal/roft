@@ -14,3 +14,6 @@ extern mod kiss3d;
 pub mod roft;
 pub mod soft_body;
 pub mod graph;
+pub mod node;
+pub mod vertex;
+pub mod edge;

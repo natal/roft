@@ -1,4 +1,6 @@
+use std::uint;
 use std::vec;
+use std::rand::random;
 use nalgebra::vec::Vec3;
 use kiss3d::window;
 use kiss3d::object::{VerticesNormalsTriangles, Object};
@@ -11,7 +13,7 @@ fn main()
   do window::Window::spawn(~"Soft body demo.") |w|
   {
     let hsub = 25;
-    let quad = w.add_quad(10.0, 10.0, hsub, 25).set_texture(~"texture.jpg");
+    let quad = w.add_quad(10.0, 10.0, hsub, 25).set_color(random(), random(), random());
 
     let soft_body = @mut quad_to_soft_body(quad, hsub);
 
@@ -21,7 +23,7 @@ fn main()
     {
       soft_body.integrate(&0.016, &Vec3::new([ 0.0f64, 0.00, 9.81f64 ]));
 
-      soft_body.solve(0.016);
+      soft_body.solve();
 
       // FIXME: solve constraints
       do quad.modify_vertices |vs|
@@ -54,13 +56,10 @@ fn quad_to_soft_body(quad: @mut Object, w: uint) -> SoftBody<f64, Vec3<f64>>
       let (mvs, mvi) = graph.export();
 
       let mut invmasses = vec::from_elem(mvs.len(), 1.0f64);
-      invmasses[0] = 0.0;
-      invmasses[w] = 0.0;
-      invmasses[mvs.len() - 1]     = 0.0;
-      // invmasses[mvs.len() / 2 + w / 2]     = 0.0;
-      invmasses[mvs.len() - w - 1] = 0.0;
-      // for uint::iterate(mvs.len() - w - 1, mvs.len()) |i|
-      // { invmasses[i] = 0.0 }
+      // invmasses[0] = 0.0;
+      // invmasses[w] = 0.0;
+      for uint::iterate(mvs.len() - w - 1, mvs.len()) |i|
+      { invmasses[i] = 0.0 }
 
       let stiffness = vec::from_elem(mvi.len(), 1000f64);
 
