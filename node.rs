@@ -196,10 +196,18 @@ impl<T> Node<T>
 
   pub fn connect(n1: @mut Node<T>, n2: @mut Node<T>)
   {
-    if !n2.is_adj_to(n1)
+    if !n1.equals(n2) && !n2.is_adj_to(n1)
     {
       n1.adj.push(n2);
       n2.adj.push(n1);
     }
   }
+
+  pub fn eat(@mut self, n: @mut Node<T>)
+  {
+    for self.adj.iter().advance |n2|
+    { Node::connect(self, *n2) }
+    n.adj.clear();
+  }
 }
+

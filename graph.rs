@@ -5,10 +5,11 @@ extern mod kiss3d;
 use std::io;
 use std::uint;
 use extra::sort::Sort;
+use extra::container::Deque;
+use extra::ringbuf::RingBuf;
 use nalgebra::vec::Vec3;
 use kiss3d::window;
 use kiss3d::object::VerticesNormalsTriangles;
-
 use node::Node;
 use edge::Edge;
 use vertex::Vertex;
@@ -16,26 +17,33 @@ use vertex::Vertex;
 type Vec3f = Vec3<f32>;
 
 
-pub struct EdgeSet
+pub struct Blob<T>
 {
-  edges: ~[@mut Node<Edge>]
+  sub_nodes: ~[@mut Node<T>]
 }
 
-impl EdgeSet
+impl<T> Blob<T>
 {
-  pub fn new(ne: @mut Node<Edge>) -> EdgeSet
+  pub fn new(ne: @mut Node<T>) -> Blob<T>
   {
-    EdgeSet
+    Blob
     {
-      edges: ~[ne]
+      sub_nodes: ~[ne]
+    }
+  }
+
+  pub fn merge(&mut self, b: @mut Blob<T>)
+  {
+    for b.sub_nodes.iter().advance |sb|
+    {
+      self.sub_nodes.push(*sb);
     }
   }
 
   pub fn is_singleton(&self) -> bool
   {
-    self.edges.len() == 1
+    self.sub_nodes.len() == 1
   }
-
 }
 
 pub struct Mesh
@@ -60,7 +68,7 @@ pub struct Graph
 {
   nodes: ~[@mut Node<Vertex>],
   edges: ~[@mut Node<Edge>],
-  edge_sets: ~[@mut Node<EdgeSet>]
+  blobs: ~[@mut Node<Blob<Edge>>]
 }
 
 impl Graph
@@ -83,7 +91,7 @@ impl Graph
     {
       nodes: nodes,
       edges: ~[],
-      edge_sets: ~[]
+      blobs: ~[]
     }
   }
 
@@ -106,10 +114,12 @@ impl Graph
 
   pub fn unmark(&mut self)
   {
-     for self.nodes.iter().advance |n1|
-     { n1.unmark() }
-     for self.edges.iter().advance |e1|
-     { e1.unmark() }
+     for self.nodes.iter().advance |n|
+     { n.unmark() }
+     for self.edges.iter().advance |e|
+     { e.unmark() }
+     for self.blobs.iter().advance |b|
+     { b.unmark() }
   }
 
   pub fn reset_dists(&mut self)
@@ -151,6 +161,64 @@ impl Graph
        e1.mark();
      }
      file.write_str("}");
+  }
+
+  pub fn build_blob_graph(&mut self, dist: uint)
+  {
+
+    // Build the singletons
+    self.unmark();
+    let mut blob_queue: ~RingBuf<@mut Node<Blob<Edge>>> = ~RingBuf::new();
+
+    self.edges.head().mark();
+    let mut i = 0;
+
+    let first_blob = Blob::new(*self.edges.head());
+
+    blob_queue.push_back(@mut Node::new(i, first_blob, self.edges.head().pos));
+
+    while !blob_queue.is_empty()
+    {
+      let current_blob = blob_queue.pop_front().unwrap();
+      if current_blob.content.is_singleton()
+      {
+        self.blobs.push(current_blob);
+        // Iterate through edge-node adjacents neighbors
+        for current_blob.content.sub_nodes.head().adj.iter().advance |e|
+        {
+          if !e.is_marked()
+          {
+            i = i + 1;
+            let b = @mut Node::new(i, Blob::new(*e), e.pos);
+            Node::connect(current_blob, b);
+            blob_queue.push_back(b);
+            e.mark();
+          }
+        }
+      }
+    }
+
+    //Make the actual blobs by eating the distant neighbors
+    self.unmark();
+
+    let blob = self.blobs.head();
+    blob.mark();
+    blob_queue.push_back(*blob);
+
+    while !blob_queue.is_empty()
+    {
+      let b = blob_queue.pop_front().unwrap();
+
+      let dist_nodes: ~[@mut Node<Blob<Edge>>]
+                        = b.distant_nodes(|n| !n.is_marked(), dist);
+
+      for dist_nodes.iter().advance |db|
+      { b.eat(*db) }
+
+      for b.adj.iter().advance |ab|
+      { blob_queue.push_back(*ab) }
+      b.mark();
+    }
   }
 
   pub fn export(&mut self) -> (~[Vec3<f64>], ~[(uint, uint)])
@@ -207,8 +275,6 @@ impl Graph
      file.write_str("}");
   }
 
-
-  // Warning : erases color
   pub fn build_edge_graph(&mut self)
   {
     self.unmark();
@@ -222,23 +288,7 @@ impl Graph
     }
   }
 
-  // Requires to have built the edge graph
-//  pub fn build_edge_set_graph(&mut self, dist: uint)
-//  {
-//    self.unmark();
-//
-//    for self.edges.iter().enumerate().advance |(i, e)|
-//    { edge_sets.push(Node::new(i, EdgeSet::new(e), e.pos)); }
-//
-//    for self.edges.iter().advance |e|
-//    {
-//      let dist_nodes = e.distant_nodes(|e2| es.is_singleton(), dist);
-//      for dist_nodes.iter().advance |dn|
-//      {
-//      }
-//    }
-//
-//  }
+
 
   // Warning changes order of edges in edge array
   // DSATUR algorithm
