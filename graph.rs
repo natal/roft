@@ -4,7 +4,6 @@ extern mod kiss3d;
 
 use std::io;
 use std::uint;
-use extra::sort::Sort;
 use extra::container::Deque;
 use extra::ringbuf::RingBuf;
 use nalgebra::vec::Vec3;
@@ -24,11 +23,11 @@ pub struct Blob<T>
 
 impl<T> Blob<T>
 {
-  pub fn new(ne: @mut Node<T>) -> Blob<T>
+  pub fn new() -> Blob<T>
   {
     Blob
     {
-      sub_nodes: ~[ne]
+      sub_nodes: ~[]
     }
   }
 
@@ -43,6 +42,19 @@ impl<T> Blob<T>
   pub fn is_singleton(&self) -> bool
   {
     self.sub_nodes.len() == 1
+  }
+
+  pub fn has_adj_elements(&self, b2: &Blob<T>) -> bool
+  {
+    for self.sub_nodes.iter().advance |e1|
+    {
+      for b2.sub_nodes.iter().advance |e2|
+      {
+        if e1.is_adj_to(*e2)
+        { return true }
+      }
+    }
+    false
   }
 }
 
@@ -175,66 +187,42 @@ impl Graph
 
   pub fn build_blob_graph(&mut self, dist: uint)
   {
-
-    // Build the singleton blob graph
+    let mut c = 0u;
     self.unmark();
-    let mut blob_queue: ~RingBuf<@mut Node<Blob<Edge>>> = ~RingBuf::new();
-
-    self.edges.head().mark();
-
-    for self.edges.iter().enumerate().advance |(i, e)|
+    for self.edges.iter().advance |e|
     {
-      e.id = i;
-      self.blobs.push(@mut Node::new(i, Blob::new(*e), e.pos));
-    }
-
-    blob_queue.push_back(*self.blobs.head());
-
-    while !blob_queue.is_empty()
-    {
-      let current_blob = blob_queue.pop_front().unwrap();
-      current_blob.content.sub_nodes.head().mark();
-        // Iterate through edge-node adjacents neighbors
-      for current_blob.content.sub_nodes.head().adj.iter().advance |e|
+      if !e.is_marked()
       {
-        if !e.is_marked()
+        let mut blob = Blob::new();
+        blob.sub_nodes.push(*e);
+
+        e.mark();
+
+
+        let dist_nodes = e.distant_nodes(|n| (n.dist() <= dist), dist);
+        for dist_nodes.iter().advance |de|
         {
-          Node::connect(current_blob, self.blobs[e.id()]);
-          blob_queue.push_back(self.blobs[e.id()]);
+          if !de.is_marked()
+          {
+            blob.sub_nodes.push(*de);
+            de.mark();
+          }
         }
+        self.blobs.push(@mut Node::new(c, blob, e.pos));
+        c = c + 1;
       }
     }
 
-    //Make the actual blobs by eating the distant neighbors
-    self.unmark();
-
-    blob_queue.push_back(*self.blobs.head());
-
-    self.blobs.clear();
-    while !blob_queue.is_empty()
+    for self.blobs.iter().advance |b1|
     {
-      let b = blob_queue.pop_front().unwrap();
-      if !b.is_marked()
+      for self.blobs.iter().advance |b2|
       {
-
-        self.blobs.push(b);
-        self.intern_unmark();
-        let dist_nodes: ~[@mut Node<Blob<Edge>>]
-          = b.distant_nodes(|n| (n.dist() <= dist && !n.is_marked()), dist);
-
-        for dist_nodes.iter().advance |db|
-        {
-          b.content.merge(&db.content);
-          Node::eat(b, *db);
-        }
-
-        for b.adj.iter().advance |ab|
-        { blob_queue.push_back(*ab) }
-
-        b.mark();
+        if b1.content.has_adj_elements(&b2.content)
+        { Node::connect(*b1, *b2) }
       }
     }
   }
+
 
   pub fn export(&mut self) -> (~[Vec3<f64>], ~[(uint, uint)])
   {
@@ -302,24 +290,25 @@ impl Graph
      file.write_str("graph blob {\n");
      self.unmark();
 
-     for self.blobs.iter().enumerate().advance |(i, b)|
+     for self.blobs.iter().advance |e|
      {
-       for b.content.sub_nodes.iter().advance |e1|
+       file.write_str(e.to_str() + " [pos=\"" + e.pos.at[0].to_str() + "," +
+                      e.pos.at[1].to_str() + "!\", color="+
+                      colors[(e.color() + 1) as uint] +
+                      ", style=filled]\n");
+     }
+
+     for self.blobs.iter().advance |b1|
+     {
+       for b1.adj.iter().advance |b2|
        {
-         file.write_str(e1.to_str() + " [pos=\"" + e1.pos.at[0].to_str() + "," +
-                        e1.pos.at[1].to_str() + "!\", color="+
-                        colors[i] +
-                        ", style=filled]\n");
-         for e1.adj.iter().advance |e2|
+         if (!b2.is_marked())
          {
-           if (!e2.is_marked())
-           {
-             file.write_str(e1.to_str() + " -- " +
-                            e2.to_str() + "\n");
-           }
+           file.write_str(b1.to_str() + " -- " +
+                          b2.to_str() + "\n");
          }
-         e1.mark();
        }
+       b1.mark();
      }
      file.write_str("}");
   }
@@ -342,41 +331,22 @@ impl Graph
   // Warning changes order of edges in edge array
   // DSATUR algorithm
 
+
   pub fn color_edge_graph(&mut self)
   {
-    assert!(self.edges.len() > 0)
-
-    self.edges.qsort();
-    self.edges.head().set_color(0);
-
-    let mut nb_chrom : int = 0;
-    let mut uncolored = self.edges.len();
-
-
-    while uncolored > 1
-    {
-      assert!(nb_chrom >= 0);
-
-      let mut max_node = self.edges.iter().find_(|n| n.color() < 0).unwrap();
-      let mut max_dsat = max_node.dsat(nb_chrom as uint);
-      for self.edges.iter().advance |n|
-      {
-        if (n.color() < 0)
-        {
-          let cur_dsat = n.dsat(nb_chrom as uint);
-          if (max_dsat < cur_dsat) || (max_dsat == cur_dsat) && (max_node.degree() < n.degree())
-          {
-            max_dsat = cur_dsat;
-            max_node = n;
-          }
-        }
-      }
-      uncolored = uncolored - 1;
-      nb_chrom = max_node.color_with_min().max(&nb_chrom);
-    }
-    println("nb_chrom : " + nb_chrom.to_str());
-    println("mean : " + (self.edges.len() as float / (nb_chrom as float)).to_str());
+    Node::color_graph(self.edges);
   }
+
+  pub fn color_blob_graph(&mut self)
+  {
+    Node::color_graph(self.blobs);
+    for self.blobs.iter().advance |b|
+    {
+      for b.content.sub_nodes.iter().advance |e|
+      { e.set_color(b.color()) }
+    }
+  }
+
 }
 
 

@@ -12,8 +12,8 @@ fn main()
 {
   do window::Window::spawn(~"Soft body demo.") |w|
   {
-    let hsub = 6;
-    let quad = w.add_quad(10.0, 10.0, hsub, 6).set_color(random(), random(), random());
+    let hsub = 5;
+    let quad = w.add_quad(10.0, 10.0, hsub, 5).set_color(random(), random(), random());
 
     let soft_body = @mut quad_to_soft_body(quad, hsub);
 
@@ -50,12 +50,28 @@ fn quad_to_soft_body(quad: @mut Object, w: uint) -> SoftBody<f64, Vec3<f64>>
       let     mesh  = Mesh::new(vs.clone(), ts.clone());
       let mut graph = Graph::new(mesh);
 
-      //graph.augment();
+      graph.augment();
       graph.build_edge_graph();
       println("Building blob graph");
+
       graph.build_blob_graph(2);
+      graph.color_blob_graph();
       graph.write_blob_graph();
       graph.write_line_graph();
+
+      // Pour recuperer les blobs:
+      // graph.blobs[i].color() -> recupere la couleur du blob i
+      // graph.blobs[i].content.sub_nodes[j].content ->
+      //       recupere l'edge j qui est dans le blob i
+      // graph.blobs[i].content.sub_nodes[j].content.color() ->
+      //       recupere la couleur de l'edge j dans le blob i
+      // graph.blobs[i].content.sub_nodes[j].content.node_1 ->
+      //       recupere le noeud 1 de l'edge j dans le blob i
+      // graph.blobs[i].content.sub_nodes[j].content.node_2 ->
+      //       recupere le noeud 2 de l'edge j dans le blob i
+      // graph.blobs[i].content.sub_nodes[j].content.node_1.pos ->
+      //       recupere la position du noeud 1 de l'edge j dans le blob i
+      //
 
 
       let (mvs, mvi) = graph.export();

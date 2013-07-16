@@ -4,6 +4,7 @@ extern mod kiss3d;
 
 use std::uint;
 use std::vec;
+use extra::sort::Sort;
 use nalgebra::vec::Vec3;
 use extra::container::Deque;
 use extra::ringbuf::RingBuf;
@@ -173,6 +174,42 @@ impl<T> Node<T>
     return false
   }
 
+  pub fn color_graph(node_array: &mut [@mut Node<T>])
+  {
+    assert!(node_array.len() > 0)
+
+    node_array.qsort();
+    node_array.head().set_color(0);
+
+    let mut nb_chrom : int = 0;
+    let mut uncolored = node_array.len();
+
+
+    while uncolored > 1
+    {
+      assert!(nb_chrom >= 0);
+
+      let mut max_node = node_array.iter().find_(|n| n.color() < 0).unwrap();
+      let mut max_dsat = max_node.dsat(nb_chrom as uint);
+      for node_array.iter().advance |n|
+      {
+        if (n.color() < 0)
+        {
+          let cur_dsat = n.dsat(nb_chrom as uint);
+          if (max_dsat < cur_dsat) || (max_dsat == cur_dsat) && (max_node.degree() < n.degree())
+          {
+            max_dsat = cur_dsat;
+            max_node = n;
+          }
+        }
+      }
+      uncolored = uncolored - 1;
+      nb_chrom = max_node.color_with_min().max(&nb_chrom);
+    }
+    println("nb_chrom : " + nb_chrom.to_str());
+    println("mean : " + (node_array.len() as float / (nb_chrom as float)).to_str());
+  }
+
   // Must be used with graph unmarked
   pub fn distant_nodes(@mut self, pred: &fn (&Node<T>) -> bool, d: uint) -> ~[@mut Node<T>]
   {
@@ -213,6 +250,30 @@ impl<T> Node<T>
     }
   }
 
+  pub fn disconnect(n1: @mut Node<T>, n2: @mut Node<T>)
+  {
+    let mut to_remove = -1;
+    for n1.adj.iter().enumerate().advance |(i, n)|
+    {
+      if n2.equals(*n)
+      { to_remove = i as int }
+    }
+
+    if to_remove > 0
+    { let _ = n1.adj.remove(to_remove as uint); }
+
+    to_remove = -1;
+
+    for n2.adj.iter().enumerate().advance |(i, n)|
+    {
+      if n1.equals(*n)
+      { to_remove = i as int }
+    }
+
+    if to_remove > 0
+    { let _ = n2.adj.remove(to_remove as uint); }
+  }
+
   pub fn id(&self) -> uint
   {
     self.id
@@ -225,8 +286,11 @@ impl<T> Node<T>
     { to_connect.push(*n3) }
 
     for to_connect.iter().advance |n3|
-    { Node::connect(n1, *n3) }
-
+    {
+      Node::connect(n1, *n3);
+      Node::disconnect(*n3, n2);
+    }
+    Node::disconnect(n1, n2);
     n2.adj.clear();
   }
 }
