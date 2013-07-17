@@ -10,6 +10,7 @@ deps:
 	make -C nalgebra
 	make deps -C nphysics
 	make deps -C kiss3d
+	make deps -C rs2cl
 	make -C nphysics
 	make -C kiss3d
 	make -C rs2cl
