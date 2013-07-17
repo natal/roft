@@ -71,6 +71,7 @@ impl SoftBodyGpu
                        integrator: &Kernel,
                        ctx:        @ComputeContext)
   {
+    // FIXME: dont re-create the buffers at each frame!
     let cl_pos = Vector::from_vec(ctx, self.positions);
     let cl_vel = Vector::from_vec(ctx, self.velocities);
 
@@ -80,13 +81,17 @@ impl SoftBodyGpu
     integrator.set_arg(3, dt);
     integrator.set_arg(4, &(self.positions.len() as u32));
 
+    let work_group_size = 64;
+    let num_work_items  =
+      work_group_size * ((self.positions.len() + (work_group_size - 1)) / work_group_size);
+
     enqueue_nd_range_kernel(
       &ctx.q,
       integrator,
       1,
       0,
-      self.positions.len() as int,
-      2);
+      num_work_items  as int,
+      work_group_size as int);
 
     self.velocities = cl_vel.to_vec();
     self.positions  = cl_pos.to_vec();
