@@ -13,8 +13,8 @@ fn main()
 {
   do window::Window::spawn(~"Soft body demo.") |w|
   {
-    let hsub = 45;
-    let quad = w.add_quad(10.0, 10.0, hsub, 45).set_color(random(), random(), random());
+    let hsub = 75;
+    let quad = w.add_quad(10.0, 10.0, hsub, 75).set_color(random(), random(), random());
 
     let (mvs, mvi, invmasses, stiffness) = builder::soft_body_parameters(quad, hsub);
     let soft_body = @mut SoftBody::from_mesh(mvs, mvi, invmasses, stiffness);
