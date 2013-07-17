@@ -13,8 +13,8 @@ fn main()
 {
   do window::Window::spawn(~"Soft body demo.") |w|
   {
-    let hsub = 5;
-    let quad = w.add_quad(10.0, 10.0, hsub, 5).set_color(random(), random(), random());
+    let hsub = 25;
+    let quad = w.add_quad(10.0, 10.0, hsub, 25).set_color(random(), random(), random());
 
     let (mvs, mvi, invmasses, stiffness) = builder::soft_body_parameters(quad, hsub);
     let soft_body = @mut SoftBody::from_mesh(mvs, mvi, invmasses, stiffness);
@@ -25,7 +25,7 @@ fn main()
     {
       soft_body.integrate(&timestep, &Vec3::new([ 0.0f64, 0.00, 9.81f64 ]));
 
-      soft_body.solve();
+      soft_body.solve(timestep.clone());
 
       // FIXME: solve constraints
       do quad.modify_vertices |vs|

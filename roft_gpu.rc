@@ -1,0 +1,23 @@
+#[link(name     = "roft_gpu"
+       , vers   = "0.0"
+       , author = "Benjamin Roux, Sébastien Crozet"
+       , uuid   = "3d067f2f-2401-4bc8-ad90-127dcd673e44")];
+#[crate_type = "bin"];
+#[warn(non_camel_case_types)]
+
+extern mod std;
+extern mod extra;
+extern mod nphysics;
+extern mod nalgebra;
+extern mod kiss3d;
+extern mod OpenCL;
+extern mod rs2cl;
+
+pub mod builder;
+pub mod roft_gpu;
+pub mod soft_body_gpu;
+pub mod graph;
+pub mod node;
+pub mod vertex;
+pub mod edge;
+pub mod kernels;
