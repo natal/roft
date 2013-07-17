@@ -56,7 +56,7 @@ fn quad_to_soft_body(quad: @mut Object, w: uint) -> SoftBody<f64, Vec3<f64>>
       graph.build_edge_graph();
       println("Building blob graph");
 
-      graph.build_blob_graph(2);
+      graph.build_blob_graph(10);
       graph.color_blob_graph();
       graph.write_blob_graph();
       graph.write_line_graph();

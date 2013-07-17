@@ -14,6 +14,12 @@ pub fn soft_body_parameters(quad: @mut Object, w: uint) -> (~[Vec3<f64>], ~[(uin
 
       graph.augment();
       graph.build_edge_graph();
+      println("Building blob graph");
+      graph.build_blob_graph(10);
+      graph.color_blob_graph();
+      graph.write_blob_graph();
+      graph.write_line_graph();
+
 
       let (mvs, mvi) = graph.export();
 

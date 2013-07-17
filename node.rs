@@ -122,15 +122,25 @@ impl<T> Node<T>
   pub fn set_color(&mut self, col: int)
   { self.color = col; }
 
-  pub fn color_with_min(&mut self) -> int
+  pub fn color_with_min(&mut self, nb_colors: uint) -> int
   {
-    let mut max_col = self.adj.head().color;
+    let mut buckets = vec::from_elem(nb_colors + 1, false);
+
     for self.adj.iter().advance |n|
     {
-      if (max_col < n.color)
-      { max_col = n.color }
+      if (n.color >= 0)
+      { buckets[n.color] = true }
     }
-    self.color = max_col + 1;
+
+    for buckets.iter().enumerate().advance |(i, c)|
+    {
+      if !(*c)
+      {
+        self.color = i as int;
+        return self.color
+      }
+    }
+    self.color = (nb_colors + 1u) as int;
     self.color
   }
 
@@ -204,10 +214,11 @@ impl<T> Node<T>
         }
       }
       uncolored = uncolored - 1;
-      nb_chrom = max_node.color_with_min().max(&nb_chrom);
+      println("Coloring node no " + max_node.id.to_str());
+      nb_chrom = max_node.color_with_min(nb_chrom as uint).max(&nb_chrom);
     }
-    println("nb_chrom : " + nb_chrom.to_str());
-    println("mean : " + (node_array.len() as float / (nb_chrom as float)).to_str());
+    println("nb_chrom : " + (nb_chrom + 1).to_str());
+    println("mean : " + (node_array.len() as float / ((nb_chrom + 1) as float)).to_str());
   }
 
   // Must be used with graph unmarked
