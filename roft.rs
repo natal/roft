@@ -13,8 +13,8 @@ fn main()
 {
   do window::Window::spawn(~"Soft body demo.") |w|
   {
-    let hsub = 25;
-    let quad = w.add_quad(10.0, 10.0, hsub, 25).set_color(random(), random(), random());
+    let hsub = 45;
+    let quad = w.add_quad(10.0, 10.0, hsub, 45).set_color(random(), random(), random());
 
     let (mvs, mvi, invmasses, stiffness) = builder::soft_body_parameters(quad, hsub);
     let soft_body = @mut SoftBody::from_mesh(mvs, mvi, invmasses, stiffness);
@@ -56,7 +56,9 @@ fn quad_to_soft_body(quad: @mut Object, w: uint) -> SoftBody<f64, Vec3<f64>>
       graph.build_edge_graph();
       println("Building blob graph");
 
-      graph.build_blob_graph(10);
+      // second parameter is the minimum number of internal connections to
+      //consider 2 blobs connected
+      graph.build_blob_graph(6, 1);
       graph.color_blob_graph();
       graph.write_blob_graph();
       graph.write_line_graph();

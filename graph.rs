@@ -42,17 +42,30 @@ impl<T> Blob<T>
     self.sub_nodes.len() == 1
   }
 
-  pub fn has_adj_elements(&self, b2: &Blob<T>) -> bool
+  pub fn nb_adj_elements(&self, b2: &Blob<T>) -> uint
+  {
+    let mut count = 0u;
+    for self.sub_nodes.iter().advance |e1|
+    {
+      for b2.sub_nodes.iter().advance |e2|
+      {
+        if e1.is_adj_to(*e2)
+        { count = count + 1 }
+      }
+    }
+    count
+  }
+
+  pub fn disconnect_adj_elements(&self, b2: &Blob<T>)
   {
     for self.sub_nodes.iter().advance |e1|
     {
       for b2.sub_nodes.iter().advance |e2|
       {
         if e1.is_adj_to(*e2)
-        { return true }
+        { Node::disconnect(*e1, *e2) }
       }
     }
-    false
   }
 }
 
@@ -183,7 +196,7 @@ impl Graph
      file.write_str("}");
   }
 
-  pub fn build_blob_graph(&mut self, dist: uint)
+  pub fn build_blob_graph(&mut self, dist: uint, min_connections: uint)
   {
     let mut c = 0u;
     self.unmark();
@@ -215,8 +228,10 @@ impl Graph
     {
       for self.blobs.iter().advance |b2|
       {
-        if b1.content.has_adj_elements(&b2.content)
+        if b1.content.nb_adj_elements(&b2.content) > min_connections
         { Node::connect(*b1, *b2) }
+        else
+        { b1.content.disconnect_adj_elements(&b2.content) }
       }
     }
   }
