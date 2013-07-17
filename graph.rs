@@ -4,8 +4,6 @@ extern mod kiss3d;
 
 use std::io;
 use std::uint;
-use extra::container::Deque;
-use extra::ringbuf::RingBuf;
 use nalgebra::vec::Vec3;
 use kiss3d::window;
 use kiss3d::object::VerticesNormalsTriangles;

@@ -3,8 +3,9 @@ use std::vec;
 use std::rand::random;
 use nalgebra::vec::Vec3;
 use kiss3d::window;
-use kiss3d::object::{VerticesNormalsTriangles, Object};
 use soft_body::SoftBody;
+use builder;
+use kiss3d::object::{VerticesNormalsTriangles, Object};
 use graph::{Mesh, Graph};
 
 #[main]
@@ -15,13 +16,14 @@ fn main()
     let hsub = 5;
     let quad = w.add_quad(10.0, 10.0, hsub, 5).set_color(random(), random(), random());
 
-    let soft_body = @mut quad_to_soft_body(quad, hsub);
+    let (mvs, mvi, invmasses, stiffness) = builder::soft_body_parameters(quad, hsub);
+    let soft_body = @mut SoftBody::from_mesh(mvs, mvi, invmasses, stiffness);
 
-    // w.set_wireframe_mode(true);
+    let timestep  = 0.016;
 
     do w.set_loop_callback |_|
     {
-      soft_body.integrate(&0.016, &Vec3::new([ 0.0f64, 0.00, 9.81f64 ]));
+      soft_body.integrate(&timestep, &Vec3::new([ 0.0f64, 0.00, 9.81f64 ]));
 
       soft_body.solve();
 

@@ -11,6 +11,7 @@ extern mod nphysics;
 extern mod nalgebra;
 extern mod kiss3d;
 
+pub mod builder;
 pub mod roft;
 pub mod soft_body;
 pub mod graph;

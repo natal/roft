@@ -7,3 +7,9 @@
 [submodule "nphysics"]
 	path = nphysics
 	url = git://github.com/sebcrozet/nphysics.git
+[submodule "rust-opencl"]
+	path = rust-opencl
+	url = git@github.com:sebcrozet/rust-opencl.git
+[submodule "rs2cl"]
+	path = rs2cl
+	url = git://github.com/sebcrozet/rs2cl.git

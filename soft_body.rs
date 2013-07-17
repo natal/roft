@@ -1,5 +1,6 @@
-use std::num::{Zero, abs};
+use std::num::{Zero, Signed};
 use nalgebra::vec::Vec0;
+use nalgebra::traits::scalar_op::ScalarMul;
 use nalgebra::traits::division_ring::DivisionRing;
 use nalgebra::traits::norm::Norm;
 use nalgebra::traits::dot::Dot;
@@ -29,7 +30,7 @@ pub struct SoftBody<N, V>
   constraints: ~[ConstraintsGeometry<N>]
 }
 
-impl<N: DivisionRing + Eq + Ord + Clone,
+impl<N: DivisionRing + Signed + Eq + Ord + Clone,
      V: VectorSpace<N> + Norm<N> + Dot<N> + Clone>
     SoftBody<N, V>
 {
@@ -95,13 +96,9 @@ impl<N: DivisionRing + Eq + Ord + Clone,
       let mut normal = self.points[c.rb1].position - self.points[c.rb2].position;
       let     length = normal.normalize();
 
-      let m1 = self.points[c.rb1].invmass.clone();
-      let m2 = self.points[c.rb2].invmass.clone();
-
-      // FIXME Le abs ne compilait pas,je l'ai remplace par un truc degueu.
-      let mut limit = c.stiffness * (length - c.rest_length);
-      if limit < -limit
-      { limit = -limit }
+      let m1    = self.points[c.rb1].invmass.clone();
+      let m2    = self.points[c.rb2].invmass.clone();
+      let limit = (c.stiffness * (length - c.rest_length)).abs();
 
       if true // length != c.rest_length
       {
@@ -136,7 +133,7 @@ impl<N: DivisionRing + Eq + Ord + Clone,
 }
 
 impl<V: VectorSpace<N> + Dot<N> + Norm<N> + Copy + Clone + ToStr,
-     N:  DivisionRing + Orderable + Ord + ToStr + Eq + Clone + Copy>
+     N:  DivisionRing + Orderable + Signed + Ord + ToStr + Eq + Clone + Copy>
      SoftBody<N, V>
 {
   pub fn solve(&mut self)
