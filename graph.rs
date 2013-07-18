@@ -4,6 +4,7 @@ extern mod kiss3d;
 
 use std::io;
 use std::uint;
+use std::vec;
 use nalgebra::vec::Vec3;
 use kiss3d::window;
 use kiss3d::object::VerticesNormalsTriangles;
@@ -87,11 +88,49 @@ impl Mesh
   }
 }
 
+pub struct Batch
+{
+  edges: ~[Edge]
+}
+
+impl Batch
+{
+  pub fn new(edges: ~[@mut Node<Edge>]) -> Batch
+  {
+    let mut new_batch = Batch
+    {
+      edges: ~[]
+    };
+
+    for edges.iter().advance |e|
+    { new_batch.edges.push(e.content) }
+
+    new_batch
+  }
+}
+
+pub struct ColorGroup
+{
+  batches: ~[Batch]
+}
+
+impl ColorGroup
+{
+  pub fn new() -> ColorGroup
+  {
+    ColorGroup
+    {
+      batches: ~[]
+    }
+  }
+}
+
 pub struct Graph
 {
-  nodes: ~[@mut Node<Vertex>],
-  edges: ~[@mut Node<Edge>],
-  blobs: ~[@mut Node<Blob<Edge>>]
+  nodes:              ~[@mut Node<Vertex>],
+  edges:              ~[@mut Node<Edge>],
+  blobs:              ~[@mut Node<Blob<Edge>>],
+  priv blob_chrom_nb: int
 }
 
 impl Graph
@@ -114,7 +153,8 @@ impl Graph
     {
       nodes: nodes,
       edges: ~[],
-      blobs: ~[]
+      blobs: ~[],
+      blob_chrom_nb: 0
     }
   }
 
@@ -164,9 +204,9 @@ impl Graph
   }
 
 
-  pub fn write_simple(&mut self)
+  pub fn write_simple(&mut self, path: ~str)
   {
-     let path = Path("./simple.dot");
+     let path = Path(path);
      let file = io::file_writer(&path, [io::Create]).get();
      file.write_str("graph simple {\n");
      self.unmark();
@@ -236,6 +276,20 @@ impl Graph
     }
   }
 
+  pub fn export_batches(&self) -> ~[ColorGroup]
+  {
+    let mut color_groups = vec::from_elem(self.blob_chrom_nb as uint, ColorGroup::new());
+
+    for self.blobs.iter().advance |blob|
+    {
+      if blob.color() < 0
+      { fail!("blob graph has not been colored correctly") }
+      color_groups[blob.color() as uint].batches.push(Batch::new(blob.content.sub_nodes.clone()));
+    }
+
+    color_groups
+  }
+
 
   pub fn export(&mut self) -> (~[Vec3<f64>], ~[(uint, uint)])
   {
@@ -254,12 +308,11 @@ impl Graph
      { edges.push((e.content.node_1.index(), e.content.node_2.index())) }
 
      (vertices, edges)
-
   }
 
-  pub fn write_line_graph(&mut self)
+  pub fn write_line_graph(&mut self, path: ~str)
   {
-     let path = Path("./line.dot");
+     let path = Path(path);
      let file = io::file_writer(&path, [io::Create]).get();
      let colors = ~["azure", "skyblue", "pink", "crimson", "peru",
                     "orange", "gold", "lawngreen", "cyan", "blueviolet",
@@ -291,9 +344,9 @@ impl Graph
      file.write_str("}");
   }
 
-  pub fn write_blob_graph(&mut self)
+  pub fn write_blob_graph(&mut self, path: ~str)
   {
-     let path = Path("./blob.dot");
+     let path = Path(path);
      let file = io::file_writer(&path, [io::Create]).get();
      let colors = ~["azure", "skyblue", "pink", "crimson", "peru",
                     "orange", "gold", "lawngreen", "cyan", "blueviolet",
@@ -352,7 +405,7 @@ impl Graph
 
   pub fn color_blob_graph(&mut self)
   {
-    Node::color_graph(self.blobs);
+    self.blob_chrom_nb = Node::color_graph(self.blobs);
     for self.blobs.iter().advance |b|
     {
       for b.content.sub_nodes.iter().advance |e|
@@ -381,9 +434,6 @@ fn main()
         graph.build_edge_graph();
         println("Coloring edge graph...");
 //        graph.color_edge_graph();
-        println("Writting to file...");
-        graph.write_simple();
-//        graph.write_line_graph();
         let (v, e) = graph.export();
         println(v.to_str());
         println(e.to_str());

@@ -184,7 +184,7 @@ impl<T> Node<T>
     return false
   }
 
-  pub fn color_graph(node_array: &mut [@mut Node<T>])
+  pub fn color_graph(node_array: &mut [@mut Node<T>]) -> int
   {
     assert!(node_array.len() > 0)
 
@@ -218,6 +218,8 @@ impl<T> Node<T>
     }
     println("chromatic number : " + (nb_chrom + 1).to_str());
     println("average node/color : " + (node_array.len() as float / ((nb_chrom + 1) as float)).to_str());
+
+    nb_chrom + 1
   }
 
   // Must be used with graph unmarked

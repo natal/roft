@@ -15,10 +15,18 @@ pub fn soft_body_parameters(quad: @mut Object, w: uint) -> (~[Vec3<f64>], ~[(uin
       graph.augment();
       graph.build_edge_graph();
       println("Building blob graph");
-      graph.build_blob_graph(13, 0);
+      graph.build_blob_graph(0, 0);
       graph.color_blob_graph();
-      graph.write_blob_graph();
-      graph.write_line_graph();
+
+      let color_groups = graph.export_batches();
+
+      println("Size color groups : " + color_groups.len().to_str());
+
+
+
+
+      graph.write_blob_graph(~"./blob.dot");
+      graph.write_line_graph(~"./line.dot");
 
 
       let (mvs, mvi) = graph.export();
