@@ -33,13 +33,15 @@ fn main()
     /*
      * Initialize simulation parameters.
      */
-    let sub  = 50;
+    let sub  = 75;
     let quad = w.add_quad(10.0, 10.0, sub, sub).set_color(random(), random(), random());
 
-    let (mvs, mvi, invmasses, stiffness) = builder::soft_body_parameters(quad, sub);
+    let (vertices, ids1, ids2, colors, colors_sizes, batches, batch_sizes, invmasses, stiffness) =
+      builder::soft_body_parameters(quad, sub);
 
-    let cl_mvs = mvs.consume_iter().transform(|v| CLVec3f64::new(v)).collect();
-    let soft_body = @mut SoftBodyGpu::from_mesh(cl_mvs, mvi, invmasses, stiffness, &solver, ctx);
+    let cl_mvs = vertices.consume_iter().transform(|v| CLVec3f64::new(v)).collect();
+    let soft_body = @mut SoftBodyGpu::from_mesh(
+      cl_mvs, ids1, ids2, colors, colors_sizes, batches, batch_sizes, invmasses, stiffness, &solver, ctx);
 
     let timestep: f64 = 0.016;
 

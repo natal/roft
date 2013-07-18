@@ -3,7 +3,7 @@ libs_w_cl=$(libs) -L./rust-opencl/ -L./rs2cl/lib
 
 all:
 	rust build roft_gpu.rc --opt-level=3 $(libs_w_cl)
-	rust build roft.rc --opt-level=3 $(libs)
+	# rust build roft.rc --opt-level=3 $(libs)
 
 deps:
 	make -C rust-opencl

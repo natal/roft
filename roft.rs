@@ -16,8 +16,9 @@ fn main()
     let hsub = 50;
     let quad = w.add_quad(20.0, 20.0, hsub, 50).set_color(random(), random(), random());
 
-    let (mvs, mvi, invmasses, stiffness) = builder::soft_body_parameters(quad, hsub);
-    let soft_body = @mut SoftBody::from_mesh(mvs, mvi, invmasses, stiffness);
+    let (vertices, ids1, ids2, colors, batches, batch_sizes, invmasses, stiffness) =
+      builder::soft_body_parameters(quad, sub);
+    let soft_body = @mut SoftBody::from_mesh(vertices, ids1, ids2, invmasses, stiffness);
 
     let timestep  = 0.016;
 
