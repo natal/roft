@@ -112,7 +112,7 @@ impl<N: DivisionRing + NumCast + Signed + Eq + Ord + Clone,
       let limit = (c.stiffness * (length - c.rest_length)).abs();
 
       let mut dvel = Zero::zero::<N>();
-      
+
       if !m2.is_zero()
       { dvel = dvel - (self.points[c.rb2].velocity + self.ext_forces.scalar_mul(&dt)).dot(&normal) }
 
