@@ -1,3 +1,4 @@
+use std::uint;
 use std::num::Zero;
 use nalgebra::vec::Vec0;
 use nalgebra::traits::division_ring::DivisionRing;
@@ -35,15 +36,13 @@ impl<N: DivisionRing + NumCast + Signed + Bounded + Eq + Ord + Clone,
     SoftBody<N, V>
 {
   pub fn from_mesh(vbuf:      ~[V],
-                   edges:     ~[(uint, uint)],
+                   ids1:      ~[i32],
+                   ids2:      ~[i32],
                    invmasses: ~[N],
                    stiffness: ~[N]) -> SoftBody<N, V>
   {
     assert!(vbuf.len() == invmasses.len(),
             "Vertex buffer and mass informations must have the same size.");
-
-    assert!(stiffness.len() == edges.len(),
-            "Edge buffer and stiffness informations must have the same size.");
 
     // create points mass
     let mut points = ~[];
@@ -60,14 +59,18 @@ impl<N: DivisionRing + NumCast + Signed + Bounded + Eq + Ord + Clone,
     // create constraints
     let mut constraints = ~[];
 
-    for edges.iter().zip(stiffness.iter()).advance |(&(v1, v2), s)|
+    for uint::iterate(0u, ids2.len()) |i|
     {
+      let v1 = ids1[i];
+      let v2 = ids2[i];
+      let s  = stiffness[i].clone();
+
       constraints.push(ConstraintsGeometry {
         stiffness:   s.clone(),
         rest_length: (vbuf[v1] - vbuf[v2]).norm(),
         impulse:     Zero::zero(),
-        rb1:         v1,
-        rb2:         v2
+        rb1:         v1 as uint,
+        rb2:         v2 as uint
       });
     }
 

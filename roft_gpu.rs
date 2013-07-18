@@ -1,4 +1,5 @@
 use std::rand::random;
+use extra::time;
 use nalgebra::vec::Vec3;
 use kiss3d::window;
 use OpenCL::hl::*;
@@ -33,8 +34,8 @@ fn main()
     /*
      * Initialize simulation parameters.
      */
-    let sub  = 75;
-    let quad = w.add_quad(10.0, 10.0, sub, sub).set_color(random(), random(), random());
+    let sub  = 50;
+    let quad = w.add_quad(100.0, 100.0, sub, sub).set_color(random(), random(), random());
 
     let (vertices, ids1, ids2, colors, colors_sizes, batches, batch_sizes, invmasses, stiffness) =
       builder::soft_body_parameters(quad, sub);
@@ -51,6 +52,8 @@ fn main()
 
     do w.set_loop_callback |_|
     {
+      let before = time::precise_time_s();
+
       let gravity = CLVec3f64::new(Vec3::new([ 0.0f64, 0.00, -9.81f64 ]));
       soft_body.integrate_gpu(&timestep, &gravity, &integrator, ctx);
 
@@ -67,6 +70,8 @@ fn main()
 
         true
       }
+
+      println((1.0 / (time::precise_time_s() - before)).to_str() + " fps");
     }
   }
 }
