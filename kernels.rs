@@ -1,6 +1,7 @@
 use std::num::Zero;
 use nalgebra::traits::scalar_op::ScalarMul;
 use nalgebra::traits::dot::Dot;
+use nalgebra::traits::norm::Norm;
 use rs2cl::kernel::Kernel;
 use rs2cl::nalgebra2cl::CLVec3f64;
 use rs2cl::pragma;
@@ -31,6 +32,60 @@ pub fn integration_kernel() -> ~str
       velocities[id].assign(velocities[id] + fext.scalar_mul(&dt));
       positions[id].assign(positions[id] + velocities[id].scalar_mul(&dt));
     }
+  }
+
+  k.to_str()
+}
+
+pub fn init_constraints_kernel() -> ~str
+{
+  let k = @mut Kernel::new(~"init_constraints");
+
+  k.enable_extension(pragma::cl_khr_fp64);
+
+  let dt           = k.param::<f64>(expr::Const);
+  let num_elements = k.param::<i32>(expr::Const);
+  let id1s         = k.named_param::<~[i32]>(~"id1s", expr::Global);
+  let id2s         = k.named_param::<~[i32]>(~"id2s", expr::Global);
+  let velocities   = k.param::<~[CLVec3f64]>(expr::Global);
+  let positions    = k.param::<~[CLVec3f64]>(expr::Global);
+  let normals      = k.named_param::<~[CLVec3f64]>(~"normals", expr::Global);
+  let fext         = k.param::<CLVec3f64>(expr::Const);
+  let invmasses    = k.named_param::<~[f64]>(~"invmasses", expr::Global);
+  let objectives   = k.named_param::<~[f64]>(~"objectives", expr::Global);
+  let rests        = k.named_param::<~[f64]>(~"rests", expr::Global);
+  let stiffs       = k.named_param::<~[f64]>(~"stiffs", expr::Global);
+
+  let id = k.var::<i32>();
+
+  id.assign(k.get_global_id(0));
+
+  do k.if_(id.cl_lt(&num_elements))
+  {
+    let id1 = id1s[id];
+    let id2 = id2s[id];
+
+    let normal = k.var::<CLVec3f64>();
+
+    normal.assign(positions[id1] - positions[id2]);
+
+    let length = k.var::<f64>();
+
+    length.assign(normal.norm());
+    normal.assign(normal.normalized());
+
+    let dvel = k.var::<f64>();
+
+    dvel.assign(dt * ((length - rests[id]) * stiffs[id]));
+
+    do k.if_(invmasses[id2].cl_gt(&expr::literal(0.0)))
+    { dvel.assign(dvel - (velocities[id2] + fext.scalar_mul(&dt)).dot(&normal)); }
+
+    do k.if_(invmasses[id1].cl_gt(&expr::literal(0.0)))
+    { dvel.assign(dvel + (velocities[id1] + fext.scalar_mul(&dt)).dot(&normal)); }
+
+    normals[id].assign(normal);
+    objectives[id].assign(dvel);
   }
 
   k.to_str()

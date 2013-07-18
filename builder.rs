@@ -85,7 +85,7 @@ pub fn soft_body_parameters(quad: @mut Object, w: uint) -> (~[Vec3<f64>], ~[(uin
       // for uint::iterate(mvs.len() - w - 1, mvs.len()) |i|
       // { invmasses[i] = 0.0 }
 
-      let stiffness = vec::from_elem(mvi.len(), 1000f64);
+      let stiffness = vec::from_elem(mvi.len(), 50.0f64);
 
       (mvs, mvi, invmasses, stiffness)
     },

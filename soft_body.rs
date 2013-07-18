@@ -30,7 +30,7 @@ pub struct SoftBody<N, V>
   constraints: ~[ConstraintsGeometry<N>]
 }
 
-impl<N: DivisionRing + NumCast + Signed + Eq + Ord + Clone,
+impl<N: DivisionRing + NumCast + Signed + Bounded + Eq + Ord + Clone,
      V: VectorSpace<N> + Norm<N> + Dot<N> + Clone>
     SoftBody<N, V>
 {
@@ -86,20 +86,16 @@ impl<N: DivisionRing + NumCast + Signed + Eq + Ord + Clone,
     {
       if !p.invmass.is_zero()
       {
-        let     sqnorm   = NumCast::from::<N, float>(0.1) * p.velocity.sqnorm();
-        let     vnorm    = p.velocity.normalized();
-        let mut friction =  Zero::zero::<V>();
-        
-        if !sqnorm.is_zero()
-        { friction = -vnorm.scalar_mul(&(sqnorm * *dt)) }
-
-        p.velocity = p.velocity + fext.scalar_mul(dt) + friction;
+        p.velocity = p.velocity + fext.scalar_mul(dt);;
         p.position = p.position + p.velocity.scalar_mul(dt);
       }
     }
   }
 
-  pub fn collect_constraints(&self, dt: N, out: &mut ~[VelocityConstraint<V, Vec0<N>, N>])
+  pub fn collect_constraints(&self,
+                             dt:          N,
+                             out:         &mut ~[VelocityConstraint<V, Vec0<N>, N>],
+                             first_order: bool)
   {
     for self.constraints.iter().advance |c|
     {
@@ -109,15 +105,22 @@ impl<N: DivisionRing + NumCast + Signed + Eq + Ord + Clone,
       let m1 = self.points[c.rb1].invmass.clone();
       let m2 = self.points[c.rb2].invmass.clone();
 
-      let limit = (c.stiffness * (length - c.rest_length)).abs();
-
       let mut dvel = Zero::zero::<N>();
 
-      if !m2.is_zero()
-      { dvel = dvel - (self.points[c.rb2].velocity + self.ext_forces.scalar_mul(&dt)).dot(&normal) }
+      if !first_order
+      {
+        dvel = dvel + dt * ((length - c.rest_length) * c.stiffness);
 
-      if !m1.is_zero()
-      { dvel = dvel + (self.points[c.rb1].velocity + self.ext_forces.scalar_mul(&dt)).dot(&normal) }
+        if !m2.is_zero()
+        { dvel = dvel - (self.points[c.rb2].velocity + self.ext_forces.scalar_mul(&dt)).dot(&normal) }
+
+        if !m1.is_zero()
+        { dvel = dvel + (self.points[c.rb1].velocity + self.ext_forces.scalar_mul(&dt)).dot(&normal) }
+      }
+      else
+      {
+        dvel = (length - c.rest_length) * NumCast::from::<N, float>(0.4) / dt;
+      }
 
       if true // length != c.rest_length
       {
@@ -134,10 +137,10 @@ impl<N: DivisionRing + NumCast + Signed + Eq + Ord + Clone,
 
             projected_mass:     m1 + m2,
 
-            impulse:            c.impulse.clone(), 
+            impulse:            if false { Zero::zero() } else { c.impulse.clone() },
             unit_impulse:       Zero::zero(),
-            lobound:            -limit,
-            hibound:            limit,
+            lobound:            -Bounded::max_value::<N>(), // limit,
+            hibound:            Bounded::max_value(), // limit,
             objective:          dvel,
             id1:                if m1.is_zero() { -1 } else { c.rb1 as int },
             id2:                if m2.is_zero() { -1 } else { c.rb2 as int },
@@ -151,14 +154,15 @@ impl<N: DivisionRing + NumCast + Signed + Eq + Ord + Clone,
 }
 
 impl<V: VectorSpace<N> + Dot<N> + Norm<N> + Copy + Clone + ToStr,
-     N:  DivisionRing + Orderable + NumCast + Signed + Ord + ToStr + Eq + Clone + Copy>
+     N:  DivisionRing + Orderable + NumCast + Signed + Bounded + Ord + ToStr + Eq + Clone + Copy>
      SoftBody<N, V>
 {
   pub fn solve(&mut self, dt: N)
   {
     let mut constraints = ~[];
 
-    self.collect_constraints(dt, &mut constraints);
+    // second order resolution
+    self.collect_constraints(dt.clone(), &mut constraints, false);
   
     let res = projected_gauss_seidel_solve(constraints,
                                            self.points.len(),
@@ -170,5 +174,16 @@ impl<V: VectorSpace<N> + Dot<N> + Norm<N> + Copy + Clone + ToStr,
 
     for constraints.iter().enumerate().advance |(i, c)|
     { self.constraints[i].impulse = c.impulse.clone() }
+
+    // first order resolution
+    // self.collect_constraints(dt.clone(), &mut constraints, true);
+  
+    // let res = projected_gauss_seidel_solve(constraints,
+    //                                        self.points.len(),
+    //                                        50,
+    //                                        true);
+
+    // for self.points.mut_iter().enumerate().advance |(i, p)|
+    // { p.position = p.position + res[i].lv.scalar_mul(&dt) }
   }
 }

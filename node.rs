@@ -216,6 +216,7 @@ impl<T> Node<T>
       uncolored = uncolored - 1;
       nb_chrom = max_node.color_with_min(nb_chrom as uint).max(&nb_chrom);
     }
+    println("nb nodes : " + node_array.len().to_str());
     println("chromatic number : " + (nb_chrom + 1).to_str());
     println("average node/color : " + (node_array.len() as float / ((nb_chrom + 1) as float)).to_str());
 
