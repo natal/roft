@@ -130,7 +130,8 @@ pub struct Graph
   nodes:              ~[@mut Node<Vertex>],
   edges:              ~[@mut Node<Edge>],
   blobs:              ~[@mut Node<Blob<Edge>>],
-  priv blob_chrom_nb: int
+  priv blob_chrom_nb: int,
+  priv edge_chrom_nb: int
 }
 
 impl Graph
@@ -154,7 +155,8 @@ impl Graph
       nodes: nodes,
       edges: ~[],
       blobs: ~[],
-      blob_chrom_nb: 0
+      blob_chrom_nb: 0,
+      edge_chrom_nb: 0
     }
   }
 
@@ -290,6 +292,20 @@ impl Graph
     color_groups
   }
 
+  pub fn export_edges(&self) -> ~[~[Edge]]
+  {
+    let mut color_groups = vec::from_elem(self.edge_chrom_nb as uint, ~[]);
+
+    for self.edges.iter().advance |e|
+    {
+      if e.color() < 0
+      { fail!("edge graph has not been colored correctly") }
+      color_groups[e.color() as uint].push(e.content);
+    }
+
+    color_groups
+  }
+
 
   pub fn export(&mut self) -> (~[Vec3<f64>], ~[i32], ~[i32])
   {
@@ -404,7 +420,7 @@ impl Graph
 
   pub fn color_edge_graph(&mut self)
   {
-    Node::color_graph(self.edges);
+    self.edge_chrom_nb = Node::color_graph(self.edges);
   }
 
   pub fn color_blob_graph(&mut self)
