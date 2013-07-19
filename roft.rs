@@ -14,7 +14,7 @@ fn main()
     let quad = w.add_quad(100.0, 100.0, hsub, 75).set_color(random(), random(), random());
 
     let (vertices, ids1, ids2, _, _, _, _, invmasses, stiffness) =
-      builder::soft_body_parameters(quad, hsub);
+      builder::soft_body_parameters(quad, hsub, false);
     let soft_body = @mut SoftBody::from_mesh(vertices, ids1, ids2, invmasses, stiffness);
 
     let timestep  = 0.016;
@@ -42,5 +42,6 @@ fn main()
 
       println((1.0 / (time::precise_time_s() - before)).to_str() + " fps");
     }
+    w.set_light(window::StickToCamera);
   }
 }

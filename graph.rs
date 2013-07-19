@@ -291,10 +291,11 @@ impl Graph
   }
 
 
-  pub fn export(&mut self) -> (~[Vec3<f64>], ~[(uint, uint)])
+  pub fn export(&mut self) -> (~[Vec3<f64>], ~[i32], ~[i32])
   {
     let mut vertices: ~[Vec3<f64>] = ~[];
-    let mut edges: ~[(uint, uint)] = ~[];
+    let mut ids1: ~[i32] = ~[];
+    let mut ids2: ~[i32] = ~[];
 
      self.unmark();
      for self.nodes.iter().advance |n|
@@ -305,9 +306,12 @@ impl Graph
      }
 
      for self.edges.iter().advance |e|
-     { edges.push((e.content.node_1.index(), e.content.node_2.index())) }
+     {
+       ids1.push(e.content.node_1.index() as i32);
+       ids2.push(e.content.node_2.index() as i32);
+     }
 
-     (vertices, edges)
+     (vertices, ids1, ids2)
   }
 
   pub fn write_line_graph(&mut self, path: ~str)
@@ -434,9 +438,6 @@ fn main()
         graph.build_edge_graph();
         println("Coloring edge graph...");
 //        graph.color_edge_graph();
-        let (v, e) = graph.export();
-        println(v.to_str());
-        println(e.to_str());
         println("Done");
       }
       _ => { }

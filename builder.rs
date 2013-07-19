@@ -20,7 +20,7 @@ pub fn cg2ids(graph: &mut Graph) -> (~[Vec3<f64>],
   let mut batches: ~[i32] = ~[];
   let mut batch_sizes: ~[i32] = ~[];
 
-  let (vertices, _) = graph.export();
+  let (vertices, _, _) = graph.export();
 
 
 
@@ -47,7 +47,7 @@ pub fn cg2ids(graph: &mut Graph) -> (~[Vec3<f64>],
   (vertices, ids1, ids2, colors, colors_sizes, batches, batch_sizes)
 }
 
-pub fn soft_body_parameters(quad: @mut Object, w: uint) -> (~[Vec3<f64>], ~[i32], ~[i32], ~[i32], ~[i32], ~[i32], ~[i32], ~[f64], ~[f64])
+pub fn soft_body_parameters(quad: @mut Object, w: uint, color_graph: bool) -> (~[Vec3<f64>], ~[i32], ~[i32], ~[i32], ~[i32], ~[i32], ~[i32], ~[f64], ~[f64])
 {
   match quad.geometry()
   {
@@ -58,32 +58,33 @@ pub fn soft_body_parameters(quad: @mut Object, w: uint) -> (~[Vec3<f64>], ~[i32]
 
       graph.augment();
       graph.build_edge_graph();
-      println("Building blob graph");
-      graph.build_blob_graph(0, 0);
-      graph.color_blob_graph();
-
-      let color_groups = graph.export_batches();
-      let (vertices, ids1, ids2, colors, colors_sizes, batches, batch_sizes) = cg2ids(&mut graph);
-
-      println("Size color groups : " + color_groups.len().to_str());
 
 
-      graph.write_blob_graph(~"./blob.dot");
-      graph.write_line_graph(~"./line.dot");
+      let (vertices, ids1, ids2, colors, colors_sizes, batches, batch_sizes) =
+      if color_graph
+      {
+        println("Preprocessing, please wait...");
+        graph.build_blob_graph(0, 0);
+        graph.color_blob_graph();
+        cg2ids(&mut graph)
+      }
 
+      else
+      {
+        let (mvs, ids1_cpu, ids2_cpu) = graph.export();
+        (mvs, ids1_cpu, ids2_cpu, ~[], ~[], ~[], ~[])
+      };
 
-      let (mvs, mvi) = graph.export();
-
-      let mut invmasses = vec::from_elem(mvs.len(), 1.0f64);
+      let mut invmasses = vec::from_elem(vertices.len(), 1.0f64);
       invmasses[0] = 0.0;
       invmasses[w] = 0.0;
-      invmasses[mvs.len() - 1]     = 0.0;
+      invmasses[vertices.len() - 1]     = 0.0;
       // invmasses[mvs.len() / 2 + w / 2]     = 0.0;
-      invmasses[mvs.len() - w - 1] = 0.0;
+      invmasses[vertices.len() - w - 1] = 0.0;
       // for uint::iterate(mvs.len() - w - 1, mvs.len()) |i|
       // { invmasses[i] = 0.0 }
 
-      let stiffness = vec::from_elem(mvi.len(), 50.0f64);
+      let stiffness = vec::from_elem(ids1.len(), 50.0f64);
 
       (vertices, ids1, ids2, colors, colors_sizes, batches, batch_sizes, invmasses, stiffness)
     },
