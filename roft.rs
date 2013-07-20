@@ -23,7 +23,7 @@ fn main()
     {
       let before = time::precise_time_s();
 
-      soft_body.integrate(&timestep, &Vec3::new([ 0.0f64, 0.00f64, -9.81 ]));
+      soft_body.integrate(&timestep, &Vec3::new(0.0f64, -9.81, 0.0));
 
       soft_body.solve(timestep.clone());
 
@@ -32,9 +32,9 @@ fn main()
       {
         for vs.mut_iter().zip(soft_body.points.iter()).advance |(v, p)|
         {
-          *v = Vec3::new([ p.position.at[0] as f32,
-                           p.position.at[1] as f32,
-                           p.position.at[2] as f32 ]);
+          *v = Vec3::new(p.position.x as f32,
+                         p.position.y as f32,
+                         p.position.z as f32);
         }
 
         true

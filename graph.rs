@@ -2,7 +2,6 @@ extern mod extra;
 extern mod nalgebra;
 extern mod kiss3d;
 
-use std::io;
 use std::uint;
 use std::vec;
 use nalgebra::vec::Vec3;
@@ -88,6 +87,7 @@ impl Mesh
   }
 }
 
+#[deriving(Clone)]
 pub struct Batch
 {
   edges: ~[Edge]
@@ -109,6 +109,7 @@ impl Batch
   }
 }
 
+#[deriving(Clone)]
 pub struct ColorGroup
 {
   batches: ~[Batch]
@@ -206,38 +207,6 @@ impl Graph
   }
 
 
-  pub fn write_simple(&mut self, path: ~str)
-  {
-     let path = Path(path);
-     let file = io::file_writer(&path, [io::Create]).get();
-     file.write_str("graph simple {\n");
-     self.unmark();
-     for self.nodes.iter().advance |n1|
-     {
-       file.write_str(n1.to_str() + " [pos=\"" + n1.pos.at[0].to_str() + "," +
-                      n1.pos.at[1].to_str() + "!\"]\n");
-     }
-     for self.edges.iter().advance |e|
-     {
-       file.write_str(e.content.node_1.to_str() + " -- " +
-                      e.content.node_2.to_str() + "\n");
-     }
-
-     for self.nodes.iter().advance |e1|
-     {
-       for e1.adj.iter().advance |e2|
-       {
-         if (!e2.is_marked())
-         {
-           file.write_str(e1.to_str() + " -- " +
-                          e2.to_str() + "\n");
-         }
-       }
-       e1.mark();
-     }
-     file.write_str("}");
-  }
-
   pub fn build_blob_graph(&mut self, dist: uint, min_connections: uint)
   {
     let mut c = 0u;
@@ -316,9 +285,9 @@ impl Graph
      self.unmark();
      for self.nodes.iter().advance |n|
      {
-       vertices.push(Vec3::new([n.pos.at[0] as f64,
-                                n.pos.at[1] as f64,
-                                n.pos.at[2] as f64]));
+       vertices.push(Vec3::new(n.pos.x as f64,
+                               n.pos.y as f64,
+                               n.pos.z as f64));
      }
 
      for self.edges.iter().advance |e|
@@ -328,75 +297,6 @@ impl Graph
      }
 
      (vertices, ids1, ids2)
-  }
-
-  pub fn write_line_graph(&mut self, path: ~str)
-  {
-     let path = Path(path);
-     let file = io::file_writer(&path, [io::Create]).get();
-     let colors = ~["azure", "skyblue", "pink", "crimson", "peru",
-                    "orange", "gold", "lawngreen", "cyan", "blueviolet",
-                    "lavender", "mediumblue", "limegreen", "chocolate", "plum",
-                    "yellowgreen", "royalblue", "hotpink", "darkslategray",
-                    "darkorange", "beige", "aliceblue", "tomato", "salmon"];
-     file.write_str("graph line {\n");
-     self.unmark();
-     for self.edges.iter().advance |e|
-     {
-       file.write_str(e.to_str() + " [pos=\"" + e.pos.at[0].to_str() + "," +
-                      e.pos.at[1].to_str() + "!\", color="+
-                      colors[(e.color() + 1) as uint] +
-                      ", style=filled]\n");
-     }
-
-     for self.edges.iter().advance |e1|
-     {
-       for e1.adj.iter().advance |e2|
-       {
-         if (!e2.is_marked())
-         {
-           file.write_str(e1.to_str() + " -- " +
-                          e2.to_str() + "\n");
-         }
-       }
-       e1.mark();
-     }
-     file.write_str("}");
-  }
-
-  pub fn write_blob_graph(&mut self, path: ~str)
-  {
-     let path = Path(path);
-     let file = io::file_writer(&path, [io::Create]).get();
-     let colors = ~["azure", "skyblue", "pink", "crimson", "peru",
-                    "orange", "gold", "lawngreen", "cyan", "blueviolet",
-                    "lavender", "mediumblue", "limegreen", "chocolate", "plum",
-                    "yellowgreen", "royalblue", "hotpink", "darkslategray",
-                    "darkorange", "beige", "aliceblue", "tomato", "salmon"];
-     file.write_str("graph blob {\n");
-     self.unmark();
-
-     for self.blobs.iter().advance |e|
-     {
-       file.write_str(e.to_str() + " [pos=\"" + e.pos.at[0].to_str() + "," +
-                      e.pos.at[1].to_str() + "!\", color="+
-                      colors[(e.color() + 1) as uint] +
-                      ", style=filled]\n");
-     }
-
-     for self.blobs.iter().advance |b1|
-     {
-       for b1.adj.iter().advance |b2|
-       {
-         if (!b2.is_marked())
-         {
-           file.write_str(b1.to_str() + " -- " +
-                          b2.to_str() + "\n");
-         }
-       }
-       b1.mark();
-     }
-     file.write_str("}");
   }
 
   pub fn build_edge_graph(&mut self)

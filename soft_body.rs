@@ -156,8 +156,8 @@ impl<N: DivisionRing + NumCast + Signed + Bounded + Eq + Ord + Clone,
   }
 }
 
-impl<V: VectorSpace<N> + Dot<N> + Norm<N> + Copy + Clone + ToStr,
-     N:  DivisionRing + Orderable + NumCast + Signed + Bounded + Ord + ToStr + Eq + Clone + Copy>
+impl<V: VectorSpace<N> + Dot<N> + Norm<N> + Clone + ToStr,
+     N:  DivisionRing + Orderable + NumCast + Signed + Bounded + Ord + ToStr + Eq + Clone>
      SoftBody<N, V>
 {
   pub fn solve(&mut self, dt: N)

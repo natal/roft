@@ -2,6 +2,7 @@ use node::Node;
 use vertex::Vertex;
 
 
+#[deriving(Clone)]
 pub struct Edge
 {
   node_1: @mut Node<Vertex>,
