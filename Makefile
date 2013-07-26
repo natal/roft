@@ -1,28 +1,17 @@
-libs=-L./kiss3d/glcore-rs/lib/ -L./kiss3d/glfw-rs/lib/ -L./kiss3d/lib -L./nalgebra/lib -L./nphysics/lib -L./nphysics/ncollide/lib -L./kiss3d/rust-stb-image/
-libs_w_cl=$(libs) -L./rust-opencl/ -L./rs2cl/lib
+libs=-L./lib/kiss3d/glcore-rs/lib/ -L./lib/kiss3d/glfw-rs/lib/ -L./lib/kiss3d/lib -L./lib/nalgebra/lib -L./lib/nphysics/lib -L./lib/nphysics/ncollide/lib -L./lib/kiss3d/rust-stb-image/
+libs_w_cl=$(libs) -L./lib/rust-opencl/ -L./lib/rs2cl/lib
 
 all:
-	rust build roft.rc --opt-level=3 $(libs)
-	rust build roft_gpu.rc --opt-level=3 $(libs_w_cl)
+	mkdir -p bin
+	rust build src/roft_gpu.rc --opt-level=3 $(libs_w_cl) --out-dir bin
+	rust build src/roft.rc --opt-level=3 $(libs) --out-dir bin
 
 deps:
-	make -C rust-opencl
-	make -C nalgebra
-	make deps -C nphysics
-	make deps -C kiss3d
-	make deps -C rs2cl
-	make -C nphysics
-	make -C kiss3d
-	make -C rs2cl
-
-simple:
-	dot -Kfdp -n -Tpdf simple.dot -o simple.pdf
-	open simple.pdf
-
-line:
-	dot -Kfdp -n -Tpdf line.dot -o line.pdf
-	open line.pdf
-
-blob:
-	dot -Kfdp -n -Tpdf blob.dot -o blob.pdf
-	open blob.pdf
+	make -C lib/rust-opencl
+	make -C lib/nalgebra
+	make deps -C lib/nphysics
+	make deps -C lib/kiss3d
+	make deps -C lib/rs2cl
+	make -C lib/nphysics
+	make -C lib/kiss3d
+	make -C lib/rs2cl

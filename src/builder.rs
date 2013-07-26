@@ -117,13 +117,10 @@ pub fn soft_body_parameters(quad: @mut Object, w: uint, color_graph: bool) -> (~
       };
 
       let mut invmasses = vec::from_elem(vertices.len(), 1.0f64);
-      invmasses[0] = 0.0;
-      invmasses[w] = 0.0;
+      // invmasses[0] = 0.0;
+      // invmasses[w] = 0.0;
       invmasses[vertices.len() - 1]     = 0.0;
-      // invmasses[mvs.len() / 2 + w / 2]     = 0.0;
       invmasses[vertices.len() - w - 1] = 0.0;
-      // for uint::iterate(mvs.len() - w - 1, mvs.len()) |i|
-      // { invmasses[i] = 0.0 }
 
       let stiffness = vec::from_elem(ids1.len(), 50.0f64);
 

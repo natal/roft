@@ -179,14 +179,14 @@ impl<V: VectorSpace<N> + Dot<N> + Norm<N> + Clone + ToStr,
     { self.constraints[i].impulse = c.impulse.clone() }
 
     // first order resolution
-    // self.collect_constraints(dt.clone(), &mut constraints, true);
+    self.collect_constraints(dt.clone(), &mut constraints, true);
   
-    // let res = projected_gauss_seidel_solve(constraints,
-    //                                        self.points.len(),
-    //                                        50,
-    //                                        true);
+    let res = projected_gauss_seidel_solve(constraints,
+                                           self.points.len(),
+                                           50,
+                                           true);
 
-    // for self.points.mut_iter().enumerate().advance |(i, p)|
-    // { p.position = p.position + res[i].lv.scalar_mul(&dt) }
+    for self.points.mut_iter().enumerate().advance |(i, p)|
+    { p.position = p.position + res[i].lv.scalar_mul(&dt) }
   }
 }

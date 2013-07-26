@@ -5,8 +5,6 @@ extern mod kiss3d;
 use std::uint;
 use std::vec;
 use nalgebra::vec::Vec3;
-use kiss3d::window;
-use kiss3d::object::VerticesNormalsTriangles;
 use node::Node;
 use edge::Edge;
 use vertex::Vertex;
@@ -333,30 +331,4 @@ impl Graph
     }
   }
 
-}
-
-
-
-fn main()
-{
-  do window::Window::spawn(~"Mesh") |w|
-  {
-    let q = w.add_quad(10.0, 10.0, 5, 5);
-    match *q.geometry()
-    {
-      VerticesNormalsTriangles(ref v, _, ref t) =>
-      {
-        let mesh = Mesh::new(v.clone(), t.clone());
-        let mut graph = Graph::new(mesh);
-        println("Augmenting graph...");
-        graph.augment();
-        println("Creating line graph...");
-        graph.build_edge_graph();
-        println("Coloring edge graph...");
-//        graph.color_edge_graph();
-        println("Done");
-      }
-      _ => { }
-    }
-  }
 }

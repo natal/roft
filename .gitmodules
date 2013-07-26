@@ -1,15 +1,15 @@
 [submodule "nalgebra"]
-	path = nalgebra
+	path = lib/nalgebra
 	url = git://github.com/sebcrozet/nalgebra.git
 [submodule "kiss3d"]
-	path = kiss3d
+	path = lib/kiss3d
 	url = git://github.com/sebcrozet/kiss3d.git
 [submodule "nphysics"]
-	path = nphysics
+	path = lib/nphysics
 	url = git://github.com/sebcrozet/nphysics.git
 [submodule "rust-opencl"]
-	path = rust-opencl
+	path = lib/rust-opencl
 	url = git://github.com/sebcrozet/rust-opencl.git
 [submodule "rs2cl"]
-	path = rs2cl
+	path = lib/rs2cl
 	url = git://github.com/sebcrozet/rs2cl.git

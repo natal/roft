@@ -100,7 +100,7 @@ pub fn lin_pgs_solver_kernel() -> ~str
   /*
    * Params
    */
-  let num         = k.named_param::<i32>(~"num", expr::Const);
+  let _           = k.named_param::<i32>(~"num", expr::Const);
   let id1s        = k.named_param::<~[i32]>(~"id1s", expr::Global);
   let id2s        = k.named_param::<~[i32]>(~"id2s", expr::Global);
   let normals     = k.named_param::<~[CLVec3f64]>(~"normals", expr::Global);
@@ -112,7 +112,7 @@ pub fn lin_pgs_solver_kernel() -> ~str
   let pmasses     = k.named_param::<~[f64]>(~"pmasses", expr::Global);
   let MJLambdas   = k.named_param::<~[CLVec3f64]>(~"MJLambdas", expr::Global);
   let colors      = k.named_param::<~[i32]>(~"colors", expr::Global);
-  let batches     = k.named_param::<~[i32]>(~"batches", expr::Global);
+  let _           = k.named_param::<~[i32]>(~"batches", expr::Global);
   let batch_sizes = k.named_param::<~[i32]>(~"batch_sizes", expr::Global);
   let curr_color  = k.named_param::<i32>(~"curr_color", expr::Const);
 

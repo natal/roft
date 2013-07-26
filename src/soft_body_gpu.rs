@@ -314,7 +314,7 @@ impl SoftBodyGpu
       {
         solver.set_arg(14, &(i as i32)); // curr_color
 
-        let work_group_size = 100;//self.colors_sizes[i] / 184 + 1;
+        let work_group_size = self.colors_sizes[i] / 184 + 1;
         let num_work_items  =
           work_group_size * ((self.colors_sizes[i] + (work_group_size - 1)) / work_group_size);
 

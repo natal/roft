@@ -19,7 +19,7 @@ fn main()
 
     let timestep  = 0.016;
 
-    do w.set_loop_callback |_|
+    do w.set_loop_callback
     {
       let before = time::precise_time_s();
 
@@ -42,6 +42,7 @@ fn main()
 
       println((1.0 / (time::precise_time_s() - before)).to_str() + " fps");
     }
+
     w.set_light(window::StickToCamera);
   }
 }

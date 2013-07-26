@@ -1,7 +1,9 @@
 use std::rand::random;
 use extra::time;
 use nalgebra::vec::Vec3;
+use nalgebra::traits::vec_cast::VecCast;
 use kiss3d::window;
+use kiss3d::camera;
 use OpenCL::hl::*;
 use rs2cl::nalgebra2cl::CLVec3f64;
 use soft_body_gpu::SoftBodyGpu;
@@ -22,8 +24,6 @@ fn main()
                kernels::init_constraints_kernel() +
                kernels::lin_pgs_solver_kernel();
     let prog = ctx.create_program_from_source(src);
-
-    println(src);
 
     prog.build(ctx.device);
 
@@ -46,15 +46,28 @@ fn main()
 
     let timestep: f64 = 0.016;
 
+    do w.camera().change_mode |m|
+    {
+      match *m
+      {
+        camera::ArcBall(ref mut ab) => {
+          ab.dist      = 500.0;
+          ab.dist_step = 100.0;
+        },
+
+        _ => { }
+      }
+    }
+
     /*
      * Initialize opencl
      */
 
-    do w.set_loop_callback |_|
+    do w.set_loop_callback
     {
       let before = time::precise_time_s();
 
-      let gravity = CLVec3f64::new(Vec3::new([ 0.0f64, 0.00, -9.81f64 ]));
+      let gravity = CLVec3f64::new(Vec3::new(0.0f64, 0.00, -9.81f64));
       soft_body.integrate_gpu(&timestep, &gravity, &integrator, ctx);
 
       soft_body.solve_gpu(&timestep, &solver, &initializer, ctx);
@@ -63,9 +76,7 @@ fn main()
       {
         for vs.mut_iter().zip(soft_body.positions.iter()).advance |(v, p)|
         {
-          *v = Vec3::new([ p.val.at[0] as f32,
-                           p.val.at[1] as f32,
-                           p.val.at[2] as f32 ]);
+          *v = VecCast::from(p.val);
         }
 
         true
