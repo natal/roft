@@ -25,17 +25,17 @@ pub fn cg2ids(graph: &mut Graph) -> (~[Vec3<f64>],
 
 
   let mut i: i32 = 0;
-  for cgs.iter().advance |cg|
+  for cg in cgs.iter()
   {
     colors.push(i);
     colors_sizes.push(cg.batches.len() as i32);
     let mut j: i32 = 0;
 
-    for cg.batches.iter().advance |batch|
+    for batch in cg.batches.iter()
     {
       batches.push(j);
       batch_sizes.push(batch.edges.len() as i32);
-      for batch.edges.iter().advance |e|
+      for e in batch.edges.iter()
       {
         ids1.push(e.node_1.id as i32);
         ids2.push(e.node_2.id as i32);
@@ -69,13 +69,13 @@ pub fn cg2ids_no_blob(graph: &mut Graph) -> (~[Vec3<f64>],
 
 
   let mut i: i32 = 0;
-  for cgs.iter().advance |cg|
+  for cg in cgs.iter()
   {
     colors.push(i);
     colors_sizes.push(cg.len() as i32);
     let mut j: i32 = 0;
 
-    for cg.iter().advance |e|
+    for e in cg.iter()
     {
       batches.push(j);
       batch_sizes.push(1);

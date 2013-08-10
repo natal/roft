@@ -3,8 +3,8 @@ libs_w_cl=$(libs) -L./lib/rust-opencl/ -L./lib/rs2cl/lib
 
 all:
 	mkdir -p bin
-	rust build src/roft_gpu.rc --opt-level=3 $(libs_w_cl) --out-dir bin
 	rust build src/roft.rc --opt-level=3 $(libs) --out-dir bin
+	rust build src/roft_gpu.rc --opt-level=3 $(libs_w_cl) --out-dir bin
 
 deps:
 	make -C lib/rust-opencl

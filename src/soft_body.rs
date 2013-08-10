@@ -1,12 +1,11 @@
-use std::uint;
-use std::num::Zero;
-use nalgebra::vec::Vec0;
+use std::num::{Zero, One};
+use nalgebra::vec::Vec1;
 use nalgebra::traits::division_ring::DivisionRing;
 use nalgebra::traits::norm::Norm;
 use nalgebra::traits::dot::Dot;
 use nalgebra::traits::vector_space::VectorSpace;
-use nphysics::constraint::velocity_constraint::VelocityConstraint;
-use nphysics::constraint::projected_gauss_seidel_solver::projected_gauss_seidel_solve;
+use nphysics::resolution::constraint::velocity_constraint::VelocityConstraint;
+use nphysics::resolution::constraint::projected_gauss_seidel_solver::projected_gauss_seidel_solve;
 
 pub struct PointMass<N, V>
 {
@@ -47,7 +46,7 @@ impl<N: DivisionRing + NumCast + Signed + Bounded + Eq + Ord + Clone,
     // create points mass
     let mut points = ~[];
 
-    for vbuf.iter().zip(invmasses.iter()).advance |(v, m)|
+    for (v, m) in vbuf.iter().zip(invmasses.iter())
     {
       points.push(PointMass {
         invmass:    m.clone(),
@@ -59,7 +58,7 @@ impl<N: DivisionRing + NumCast + Signed + Bounded + Eq + Ord + Clone,
     // create constraints
     let mut constraints = ~[];
 
-    for uint::iterate(0u, ids2.len()) |i|
+    for i in range(0u, ids2.len())
     {
       let v1 = ids1[i];
       let v2 = ids2[i];
@@ -85,7 +84,7 @@ impl<N: DivisionRing + NumCast + Signed + Bounded + Eq + Ord + Clone,
   {
     self.ext_forces = fext.clone();
 
-    for self.points.mut_iter().advance |p|
+    for p in self.points.mut_iter()
     {
       if !p.invmass.is_zero()
       {
@@ -97,10 +96,10 @@ impl<N: DivisionRing + NumCast + Signed + Bounded + Eq + Ord + Clone,
 
   pub fn collect_constraints(&self,
                              dt:          N,
-                             out:         &mut ~[VelocityConstraint<V, Vec0<N>, N>],
+                             out:         &mut ~[VelocityConstraint<V, Vec1<N>, N>],
                              first_order: bool)
   {
-    for self.constraints.iter().advance |c|
+    for c in self.constraints.iter()
     {
       let mut normal = self.points[c.rb1].position - self.points[c.rb2].position;
       let     length = normal.normalize();
@@ -138,7 +137,7 @@ impl<N: DivisionRing + NumCast + Signed + Bounded + Eq + Ord + Clone,
             rot_axis2:          Zero::zero(),
             weighted_rot_axis2: Zero::zero(),
 
-            projected_mass:     m1 + m2,
+            inv_projected_mass: One::one::<N>() / (m1 + m2),
 
             impulse:            if false { Zero::zero() } else { c.impulse.clone() },
             unit_impulse:       Zero::zero(),
@@ -148,7 +147,9 @@ impl<N: DivisionRing + NumCast + Signed + Bounded + Eq + Ord + Clone,
             id1:                if m1.is_zero() { -1 } else { c.rb1 as int },
             id2:                if m2.is_zero() { -1 } else { c.rb2 as int },
 
-            normal:             normal
+            normal:             normal,
+            friction_limit_id:  0,
+            friction_coeff:     Zero::zero(),
           }
         )
       }
@@ -168,25 +169,15 @@ impl<V: VectorSpace<N> + Dot<N> + Norm<N> + Clone + ToStr,
     self.collect_constraints(dt.clone(), &mut constraints, false);
   
     let res = projected_gauss_seidel_solve(constraints,
+                                           [],
                                            self.points.len(),
                                            50,
                                            false);
 
-    for self.points.mut_iter().enumerate().advance |(i, p)|
+    for (i, p) in self.points.mut_iter().enumerate()
     { p.velocity = p.velocity + res[i].lv }
 
-    for constraints.iter().enumerate().advance |(i, c)|
+    for (i, c) in constraints.iter().enumerate()
     { self.constraints[i].impulse = c.impulse.clone() }
-
-    // first order resolution
-    self.collect_constraints(dt.clone(), &mut constraints, true);
-  
-    let res = projected_gauss_seidel_solve(constraints,
-                                           self.points.len(),
-                                           50,
-                                           true);
-
-    for self.points.mut_iter().enumerate().advance |(i, p)|
-    { p.position = p.position + res[i].lv.scalar_mul(&dt) }
   }
 }

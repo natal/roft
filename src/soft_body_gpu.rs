@@ -1,4 +1,3 @@
-use std::uint;
 use std::vec;
 use std::num::Zero;
 use OpenCL::hl::*;
@@ -107,7 +106,7 @@ impl SoftBodyGpu
     let mut rests:     ~[f64] = ~[];
     let mut stiffs:    ~[f64] = ~[];
 
-    for uint::iterate(0u, oid1s.len()) |i|
+    for i in range(0u, oid1s.len())
     {
       let v1 = oid1s[i];
       let v2 = oid2s[i];
@@ -265,7 +264,7 @@ impl SoftBodyGpu
 
     self.cl_nor.to_existing_vec(self.normals);
 
-    for uint::iterate(0, self.pmasses.len()) |i|
+    for i in range(0u, self.pmasses.len())
     {
       let id1        = self.real_id1s[i];
       let id2        = self.real_id2s[i];
@@ -308,9 +307,9 @@ impl SoftBodyGpu
      */
     solver.set_arg(10, &cl_mjl);
 
-    for 50u.times
+    do 50u.times
     {
-      for uint::iterate(0u, self.num_colors) |i|
+      for i in range(0u, self.num_colors)
       {
         solver.set_arg(14, &(i as i32)); // curr_color
 
@@ -332,7 +331,7 @@ impl SoftBodyGpu
 
     let dvs = cl_mjl.to_vec();
 
-    for self.velocities.mut_iter().zip(dvs.iter()).advance |(v, dv)|
+    for (v, dv) in self.velocities.mut_iter().zip(dvs.iter())
     { *v = *v + *dv }
 
     self.cl_imp.to_existing_vec(self.impulses);

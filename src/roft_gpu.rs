@@ -13,7 +13,7 @@ use kernels;
 #[main]
 fn main()
 {
-  do window::Window::spawn(~"Soft body demo.") |w|
+  do window::Window::spawn("Soft body demo.") |w|
   {
     /*
      * Initialize OpenCL
@@ -74,7 +74,7 @@ fn main()
 
       do quad.modify_vertices |vs|
       {
-        for vs.mut_iter().zip(soft_body.positions.iter()).advance |(v, p)|
+        for (v, p) in vs.mut_iter().zip(soft_body.positions.iter())
         {
           *v = VecCast::from(p.val);
         }

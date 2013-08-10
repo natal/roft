@@ -2,7 +2,6 @@ extern mod extra;
 extern mod nalgebra;
 extern mod kiss3d;
 
-use std::uint;
 use std::vec;
 use extra::sort::Sort;
 use nalgebra::vec::Vec3;
@@ -68,7 +67,7 @@ impl<T> Node<T>
   {
     let mut buckets = vec::from_elem(nb_colors + 1, false);
 
-    for self.adj.iter().advance |n|
+    for n in self.adj.iter()
     {
       if (n.color >= 0)
       { buckets[n.color as uint] = true }
@@ -76,7 +75,7 @@ impl<T> Node<T>
 
     let mut count = 0u;
 
-    for buckets.iter().advance |u|
+    for u in buckets.iter()
     {
       if (*u)
       { count = count + 1 }
@@ -113,7 +112,7 @@ impl<T> Node<T>
   pub fn to_str(&self) -> ~str
   { self.id.to_str() }
 
-  pub fn equals(&self, n: &Node<T>) -> bool
+  pub fn equals_(&self, n: &Node<T>) -> bool
   { n.id == self.id }
 
   pub fn color(&self) -> int
@@ -126,13 +125,13 @@ impl<T> Node<T>
   {
     let mut buckets = vec::from_elem(nb_colors + 1, false);
 
-    for self.adj.iter().advance |n|
+    for n in self.adj.iter()
     {
       if (n.color >= 0)
       { buckets[n.color] = true }
     }
 
-    for buckets.iter().enumerate().advance |(i, c)|
+    for (i, c) in buckets.iter().enumerate()
     {
       if !(*c)
       {
@@ -146,9 +145,9 @@ impl<T> Node<T>
 
   pub fn is_adj_to(&self, node: &Node<T>) -> bool
   {
-    for self.adj.iter().advance |n|
+    for n in self.adj.iter()
     {
-      if n.equals(node)
+      if n.equals_(node)
       { return true }
     }
     return false;
@@ -157,11 +156,11 @@ impl<T> Node<T>
   pub fn nb_common_adj(&self, node: &Node<T>) -> uint
   {
     let mut nb_common = 0;
-    for self.adj.iter().advance |n1|
+    for n1 in self.adj.iter()
     {
-      for node.adj.iter().advance |n2|
+      for n2 in node.adj.iter()
       {
-        if n1.equals(*n2)
+        if n1.equals_(*n2)
         { nb_common = nb_common + 1}
       }
     }
@@ -171,11 +170,11 @@ impl<T> Node<T>
   pub fn share_k_adjs(&self, node: &Node<T>, k: uint) -> bool
   {
     let mut count = 0;
-    for self.adj.iter().advance |n1|
+    for n1 in self.adj.iter()
     {
-      for node.adj.iter().advance |n2|
+      for n2 in node.adj.iter()
       {
-        if n1.equals(*n2)
+        if n1.equals_(*n2)
         { count = count + 1 }
         if count >= k
         {  return true }
@@ -201,7 +200,7 @@ impl<T> Node<T>
 
       let mut max_node = node_array.iter().find_(|n| n.color() < 0).unwrap();
       let mut max_dsat = max_node.dsat(nb_chrom as uint);
-      for node_array.iter().advance |n|
+      for n in node_array.iter()
       {
         if (n.color() < 0)
         {
@@ -237,7 +236,7 @@ impl<T> Node<T>
     while !node_queue.is_empty()
     {
       let n = node_queue.pop_front().unwrap();
-      for uint::iterate(0u, n.adj.len()) |i|
+      for i in range(0u, n.adj.len())
       {
         let n2 : @mut Node<T> = n.adj[i];
         if !n2.intern_mark
@@ -256,7 +255,7 @@ impl<T> Node<T>
 
   pub fn connect(n1: @mut Node<T>, n2: @mut Node<T>)
   {
-    if !n1.equals(n2) && !n2.is_adj_to(n1)
+    if !n1.equals_(n2) && !n2.is_adj_to(n1)
     {
       n1.adj.push(n2);
       n2.adj.push(n1);
@@ -266,9 +265,9 @@ impl<T> Node<T>
   pub fn disconnect(n1: @mut Node<T>, n2: @mut Node<T>)
   {
     let mut to_remove = -1;
-    for n1.adj.iter().enumerate().advance |(i, n)|
+    for (i, n) in n1.adj.iter().enumerate()
     {
-      if n2.equals(*n)
+      if n2.equals_(*n)
       { to_remove = i as int }
     }
 
@@ -277,9 +276,9 @@ impl<T> Node<T>
 
     to_remove = -1;
 
-    for n2.adj.iter().enumerate().advance |(i, n)|
+    for (i, n) in n2.adj.iter().enumerate()
     {
-      if n1.equals(*n)
+      if n1.equals_(*n)
       { to_remove = i as int }
     }
 
@@ -295,10 +294,10 @@ impl<T> Node<T>
   pub fn eat(n1: @mut Node<T>, n2: @mut Node<T>)
   {
     let mut to_connect: ~[@mut Node<T>] = ~[];
-    for n1.adj.iter().advance |n3|
+    for n3 in n1.adj.iter()
     { to_connect.push(*n3) }
 
-    for to_connect.iter().advance |n3|
+    for n3 in to_connect.iter()
     {
       Node::connect(n1, *n3);
       Node::disconnect(*n3, n2);

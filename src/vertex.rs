@@ -1,6 +1,5 @@
 extern mod nalgebra;
 
-use std::uint;
 use nalgebra::vec::Vec3;
 use nalgebra::traits::scalar_op::ScalarMul;
 use edge::Edge;
@@ -27,11 +26,11 @@ impl Vertex
 
   pub fn connect_edges(&mut self)
   {
-    for self.edges.iter().advance |e1|
+    for e1 in self.edges.iter()
     {
-      for self.edges.iter().advance |e2|
+      for e2 in self.edges.iter()
       {
-        if (!e1.equals(*e2)) && !e1.is_adj_to(*e2)
+        if (!e1.equals_(*e2)) && !e1.is_adj_to(*e2)
         { Node::connect(*e1, *e2) }
       }
     }
@@ -40,7 +39,7 @@ impl Vertex
   //To be used with graph unmarked
   pub fn split(node: @mut Node<Vertex>, all_edges: &mut ~[@mut Node<Edge>])
   {
-    for uint::iterate(0u, node.adj.len()) |i|
+    for i in range(0u, node.adj.len())
     {
       let a = node.adj[i];
       if !a.is_marked()

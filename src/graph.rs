@@ -2,7 +2,6 @@ extern mod extra;
 extern mod nalgebra;
 extern mod kiss3d;
 
-use std::uint;
 use std::vec;
 use nalgebra::vec::Vec3;
 use node::Node;
@@ -29,7 +28,7 @@ impl<T> Blob<T>
 
   pub fn merge(&mut self, b: &Blob<T>)
   {
-    for b.sub_nodes.iter().advance |sb|
+    for sb in b.sub_nodes.iter()
     {
       self.sub_nodes.push(*sb);
     }
@@ -43,9 +42,9 @@ impl<T> Blob<T>
   pub fn nb_adj_elements(&self, b2: &Blob<T>) -> uint
   {
     let mut count = 0u;
-    for self.sub_nodes.iter().advance |e1|
+    for e1 in self.sub_nodes.iter()
     {
-      for b2.sub_nodes.iter().advance |e2|
+      for e2 in b2.sub_nodes.iter()
       {
         if e1.is_adj_to(*e2)
         { count = count + 1 }
@@ -56,9 +55,9 @@ impl<T> Blob<T>
 
   pub fn disconnect_adj_elements(&self, b2: &Blob<T>)
   {
-    for self.sub_nodes.iter().advance |e1|
+    for e1 in self.sub_nodes.iter()
     {
-      for b2.sub_nodes.iter().advance |e2|
+      for e2 in b2.sub_nodes.iter()
       {
         if e1.is_adj_to(*e2)
         { Node::disconnect(*e1, *e2) }
@@ -100,7 +99,7 @@ impl Batch
       edges: ~[]
     };
 
-    for edges.iter().advance |e|
+    for e in edges.iter()
     { new_batch.edges.push(e.content) }
 
     new_batch
@@ -138,11 +137,11 @@ impl Graph
   pub fn new(mesh: Mesh) -> Graph
   {
     let mut nodes: ~[@mut Node<Vertex>] = ~[];
-    for mesh.vbuff.iter().enumerate().advance |(vid, v)|
+    for (vid, v) in mesh.vbuff.iter().enumerate()
     { nodes.push(@mut Node::new(vid, Vertex::new(*v), *v)) }
 
 
-    for mesh.ibuff.iter().advance |&(id1, id2, id3)|
+    for &(id1, id2, id3) in mesh.ibuff.iter()
     {
       Node::connect(nodes[id1], nodes[id2]);
       Node::connect(nodes[id1], nodes[id3]);
@@ -162,45 +161,45 @@ impl Graph
   pub fn augment(&mut self)
   {
     let mut to_connect : ~[~[@mut Node<Vertex>]] = ~[];
-    for uint::iterate(0u, self.nodes.len()) |i|
+    for i in range(0u, self.nodes.len())
     {
       self.unmark();
       let n1 = self.nodes[i];
       to_connect.push(n1.distant_nodes(|n2| (n2.dist() == 2 && n1.share_k_adjs(n2, 2)), 2));
     }
 
-    for self.nodes.iter().enumerate().advance |(i, n)|
+    for (i, n) in self.nodes.iter().enumerate()
     {
-      for to_connect[i].iter().advance |n2|
+      for n2 in to_connect[i].iter()
       { Node::connect(*n, *n2) }
     }
   }
 
   pub fn unmark(&mut self)
   {
-     for self.nodes.iter().advance |n|
+     for n in self.nodes.iter()
      { n.unmark() }
-     for self.edges.iter().advance |e|
+     for e in self.edges.iter()
      { e.unmark() }
-     for self.blobs.iter().advance |b|
+     for b in self.blobs.iter()
      { b.unmark() }
   }
 
   pub fn intern_unmark(&mut self)
   {
-     for self.nodes.iter().advance |n|
+     for n in self.nodes.iter()
      { n.intern_unmark() }
-     for self.edges.iter().advance |e|
+     for e in self.edges.iter()
      { e.intern_unmark() }
-     for self.blobs.iter().advance |b|
+     for b in self.blobs.iter()
      { b.intern_unmark() }
   }
 
   pub fn reset_dists(&mut self)
   {
-     for self.nodes.iter().advance |n1|
+     for n1 in self.nodes.iter()
      { n1.reset_dist() }
-     for self.edges.iter().advance |e1|
+     for e1 in self.edges.iter()
      { e1.unmark() }
   }
 
@@ -209,7 +208,7 @@ impl Graph
   {
     let mut c = 0u;
     self.unmark();
-    for self.edges.iter().advance |e|
+    for e in self.edges.iter()
     {
       if !e.is_marked()
       {
@@ -220,7 +219,7 @@ impl Graph
 
 
         let dist_nodes = e.distant_nodes(|n| (n.dist() <= dist), dist);
-        for dist_nodes.iter().advance |de|
+        for de in dist_nodes.iter()
         {
           if !de.is_marked()
           {
@@ -233,9 +232,9 @@ impl Graph
       }
     }
 
-    for self.blobs.iter().advance |b1|
+    for b1 in self.blobs.iter()
     {
-      for self.blobs.iter().advance |b2|
+      for b2 in self.blobs.iter()
       {
         if b1.content.nb_adj_elements(&b2.content) > min_connections
         { Node::connect(*b1, *b2) }
@@ -249,7 +248,7 @@ impl Graph
   {
     let mut color_groups = vec::from_elem(self.blob_chrom_nb as uint, ColorGroup::new());
 
-    for self.blobs.iter().advance |blob|
+    for blob in self.blobs.iter()
     {
       if blob.color() < 0
       { fail!("blob graph has not been colored correctly") }
@@ -263,7 +262,7 @@ impl Graph
   {
     let mut color_groups = vec::from_elem(self.edge_chrom_nb as uint, ~[]);
 
-    for self.edges.iter().advance |e|
+    for e in self.edges.iter()
     {
       if e.color() < 0
       { fail!("edge graph has not been colored correctly") }
@@ -281,14 +280,14 @@ impl Graph
     let mut ids2: ~[i32] = ~[];
 
      self.unmark();
-     for self.nodes.iter().advance |n|
+     for n in self.nodes.iter()
      {
        vertices.push(Vec3::new(n.pos.x as f64,
                                n.pos.y as f64,
                                n.pos.z as f64));
      }
 
-     for self.edges.iter().advance |e|
+     for e in self.edges.iter()
      {
        ids1.push(e.content.node_1.index() as i32);
        ids2.push(e.content.node_2.index() as i32);
@@ -300,10 +299,10 @@ impl Graph
   pub fn build_edge_graph(&mut self)
   {
     self.unmark();
-    for self.nodes.iter().advance |n|
+    for n in self.nodes.iter()
     { Vertex::split(*n, &mut self.edges) }
 
-    for self.nodes.iter().advance |n|
+    for n in self.nodes.iter()
     {
       n.adj.clear();
       n.content.connect_edges();
@@ -324,9 +323,9 @@ impl Graph
   pub fn color_blob_graph(&mut self)
   {
     self.blob_chrom_nb = Node::color_graph(self.blobs);
-    for self.blobs.iter().advance |b|
+    for b in self.blobs.iter()
     {
-      for b.content.sub_nodes.iter().advance |e|
+      for e in b.content.sub_nodes.iter()
       { e.set_color(b.color()) }
     }
   }
